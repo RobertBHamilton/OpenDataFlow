@@ -1,0 +1,16 @@
+When you call open() for a DataProvider 
+1. You supply a passphrase in the open() call
+2. The DataProvider provides the passphrase to the CredentialProvider
+3. The Credential provider decrypts an encrypted string in a properties file and obtains password to the database
+4.  Credentials are user/password. They are returned to DataProvider in a java.util.Properties object.
+5. The DataProvider then connects to the database using the supplied credentials and provides an opened connection to the caller.
+
+An ironclad rule is that the passprhase used to decrypt is NEVER available to any part of the framework.
+To enforce the ironclad rule, no code in core framework ever determines a passphrase.
+ 
+This way if an attacker takes complete control of the framework  database he cannot access any of the registered databases.
+Application is responsible for protecting the passphrase and for providing it for the framework to open a connection.
+  
+The application may pass the passhphrase through command line, through environment, or obtain it from a password vault.
+    For now we only support explicit passphrase in function call. 
+

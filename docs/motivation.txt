@@ -1,10 +1,40 @@
 # OpenDataFlow.core
 
-DataFlow is a reference implementation for managing ETL workflow in the most challenging of tasks -- where very large volumes of data are to be handled and need to be partitioned and processed in a highly parallel manner, yet required to  have robust error detectin, seamless error recovery and restartability, and the ability to automatically partition and scale.  These are the characterist requirements for a typical well-designed Big Data data flow.
+History.
 
-Taking the perspective of an ETL resource, I want my script or process to be supplied all the input data (including all connection data), the location of the output data, any job sequence number, and to be guaranteed that I'm operating on the data sets required by business requirements, with no chance of gaps, overlaps, or undetected misses due to error states.  That keeps the ETL script simple as the most complex parts of the  logic is handled by the framework. It keeps the script simple and generic.
+1. Many Years ago, I was holding a devops pager for the entire datawarehouse feed for a major corporation. When a job failed the devops guy was supposed to root cause the failure, make whatever cleanups were needed, restart the job, note successful completiion and communicate downstream the resolution.
+
+   One weekend because of a network misconfiguration deployed on Friday, all 700 jobs running each running on one of a half dozen possible servers, in the daily batch cycle failed.  File paths for either extracts or loads were hardcoded in scripts, as will as connection strings to the databases either extracted or loaded, logs were not systematically saved, and filesystem flags  were the only clue as to the final status of any job. 
+
+Due dilligence requires the basic questions need to be answered: was the data really ready when the job ran, was it running on the right data (the expected sequence number), was it in the physical location expected (correct environment,fileserver and path?), was it validated, was it safe to access at the time? Even that basic preliminary root cause analysis involved locating the specific flag files, extracting the job sequence number, then diving into the code to find location of data sets and then examining the data set to determine the issue, a process which was tedious, time consuming and error prone.
+
+After that mess was fixed, the natural postmortem thought is, wouldn't life be simpler if we actually captured the information necessary to answer those questions? What if we didn't need tribal knowledge to erase or to to create file system flags and restart in the exact order needed?  
+
+That lesson is what motivated the principles that are built into this framework.
 
 
+2.  A few years after that, I took it upon myself to extract a large data store from a relational database and load it into a Big Data platform.  It was roughly 100TB in size but would be manageable if sharded into 10,000 extract jobs of 10GB each followed by load jobs into the Big Data.  If each job was 20 minutes extract and 20 minutes load then the migration would be 7000 hours total. So it would be prudent to enable 10x concurrency and complete the task in 4 weeks, but be able to scale up and down the concurrency at will because others would be using the production servers at times. But even so, it is no fun to keep eyes on glass for 700 hours. The orchestration has to be very robust. A 1% job failure rate is quite possible on Hadoop mapreduce so restartability if also a priority.
+It turns out that paying attention to the five questions (ready?right?location?valid?safe?) and keeping the answers into a data store was sufficient to make this into a fire-and-forget script.  
+
+3. In the years following, I had other opportunities to do large scale data migration/massive batch jobs. I typically just unpacked my dataflow scripts, configured them for the current jobs and let them run. I'd check in every few days and restart any that failed, but there was little more than 5 minutes a day to manage it.
+
+4. The shell script implementation and local storage for data status was fine for personal use and any one-off months long task, and it impressed executive leadership nicely, but it was not so good for handing off to others who may not be so comfortable with services written purely in scripting language.
+So I've decided to take the lessons learned and apply them to a framework written from scratch, but now using enterprise-class data store and service.
+This one, using entirely new code, can be shared as an open source utiility.
+
+The goal is that an ETL developer could download and set up the framework in about one day, configure it for their particular jobs in another day, and be running massive partitioned job streams by day 3.
+
+
+
+
+
+-------------------------------------------------------------------------
+Here is a deeper perspective:
+
+Taking the viewpoint of an ETL resource, I want my script or process to be supplied all the input data (including all connection data), the location of the output data, any job sequence number, and to be guaranteed that I'm operating on the data sets required by business requirements, with no chance of gaps, overlaps, or undetected misses due to error states.  That keeps the ETL script simple as the most complex parts of the  logic is handled by the framework. It keeps the script simple and generic.
+
+If a job has failed, I also want to be able to restart it with no special cleanups, just set a field to "resubmit" and let the normal flow continue.
+If there are future questions about data integrity, I want to be able to answer the five questions quickly and easily (exception to Brandolini principle) based on status information saved in the dataflow datastore.
 
 Our perspective is that such a workflow needs to have at least the following features:
 
@@ -47,7 +77,7 @@ These tend to be expensive exercises. The more that we can automate the capture 
 
 In this author's experience over nearly three decades of ETL developement and support, almost all operational issues with data flow come about because of inaccurate assumptions made with respect to these 5 questions:
 
-# The transactional model
+# The five questions supporting the transactional model
 
 
 Our approach is to treat each data set consumed or produced by a job as an indivisible unit, and one that is passed from output of one job to input of the next with the same kind of checks and controls that you would apply to any data transfer protocol.

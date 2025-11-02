@@ -1,0 +1,50 @@
+The two core data components are the job metadata table and the data status table.
+
+
+Table: Jobs    Includes all metadata for job, sufficient to run it.
+
+  JobID, that doubles as job name
+  Dataset for input data
+  DataSet  for output data
+  Environment -- additional data specific to this job
+  
+  A job is an association of one or more input data sets, 
+  an output data set, and metadata pointing to the scripts, binaries, endpoints, etc 
+  which acually run the process.
+  Framework will use this to check job dependencies and status
+  Framework will use this to provide parameters needed by actual job script
+  URL for job Will not be saved in database to prevent code injection
+
+Table: DataSet -- all metadata to locate and access a data set. 
+
+  datasetid   primary key
+  URL         first part of connection string, identifying database or file server
+  connection  remainder of connection string, typical jdb connection parms, etc
+  encrypted password user must supply decryption key for successs connection.
+  
+  The encryption is so that even if the database is completely compromised, it is still not possible for the attacker to open any database connection without the decryption key.
+
+
+Table DataStatus: the chunk-level status. 
+
+  dataid     chunk level identifier (data or sequence number for the partitioning scheme)   
+  datasetid  data set level identifier
+  jobid      the job producing this data (could be derived from meta but useful here)
+  datatype   either INPUT or OUTPUT. Yes this could be found from job table but is denormalized here for performance
+  status     current status of the job, imputed to the data chunk
+
+    Framework needs to know thet status of every chunk (partition) of the data
+    in order to determine dependencies for jobs and make decisions   
+    based on which jobs are running or complete.
+
+    We require that given dataid and datasetid, it must be possible to fully 
+    determine location of the data chunk. This means open a connection and derive the "where clause"
+    for a database table, or connect to file server, path to dataset, path to file partition 
+    if for a file based dataset
+ 
+   Operations after being notified about a particular jobid and dataid will use this table as point of entry for forensics.  
+
+See the file functional.txt for functional requirements
+See the file statuslocks.txt for the design and semantics of the custom lock table
+
+

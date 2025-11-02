@@ -1,0 +1,39 @@
+The design requirements for the project are as follows:
+
+Requirement 1. DataSet supplies all the information required to access the ETL data set, given decryption key
+Requirement 2. Job supplies all the parameters the job script needs to run a job on a particular datachunk
+Requirement 3. there exists a mapping DataLoc: (DataID,DataSetID) --> physical access to the data chunck
+Requirement 4. for every job there exists a mapping JobID: (input dataset,dataID for job) --> dataID (output dataid for job)
+Requirement 5. No executable strings in the database.
+Requirement 6. Only encrypted credentials are stored. Decription string is not available to framework.
+
+
+The functional requirements are as follows:
+FR1:   
+  Supply answer to the critical question: give me the "next" location of input data sets which 
+    have not been processed yet and which are not being processed now.  
+  "Next" implies an ordering on a collection of tuples, if there are more than one input dataset. It is determned by business requirements.
+   In this version we will simplify, using a sequence number or date string and requiring input/output to have the same value.
+   
+FR2:
+   Supply information to access input  datasets (read only) and to write to appropriate output data set
+   For example, make it possible to write a genericy COPY command with all arguments supplied by DataFlow framework
+
+FR3: 
+   For devops support if job failed.  Capture and provide answers to the five questions. Was the data ready? Was it the right data? Was it in the correct physical location? Was it valid? Was it safe to access?
+
+
+FR4: 
+   Fully restartable by setting the status to something other than "error","failed", "complete".  I.e. no manual cleanups
+
+Discussion:
+
+   To support cooperative locking, input data chunks will need to have a status for each job/input/chunk combination.  For example if jobA is consuming a data chunk dataA/chunk1, we might want to forbid any other jobA from accessing it.  Thus we need a row in the datastatus table for each of jobA and jobB running, with key dataA/chunk1/jobA,consuming and dataA/chunk1,jobB, consuming.  When jobA finishes then it can update the status of the input row  dataA/chunk1/jobA to done. 
+The output_data/chunk/job can update to complete or ready. 
+
+   To be complete, any consumer of a dataset/dataid and should be blocked from running on that chunk, and any producer should be blocked from attempting to produce it  unless the OUTPUT dataid is in READY state. This implies a global read/write lock.
+
+   To accomplish this we will let the datastatus table to double as a lock table. The semantics are different between input and output data chuncks, so it will include a locktype as either INPUT or OUTPUT to distinguish them.
+   The full semantics is detailed in file statuslock.txt
+ 
+   
