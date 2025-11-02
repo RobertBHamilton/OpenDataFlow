@@ -3,7 +3,7 @@
 
 DataFlow is a reference implementation for managing ETL workflow in the most challenging of tasks -- where very large volumes of data are to be handled and need to be partitioned and processed in a highly parallel manner, yet required to  have robust error detectin, seamless error recovery and restartability, and the ability to automatically partition and scale.  These are the characterist requirements for a typical well-designed Big Data data flow.
 
-#History.
+# History.
 
 1. Many years ago, I was holding a devops pager for the entire datawarehouse feed for a major corporation. When a job failed the devops guy was supposed to root cause the failure, make whatever cleanups were needed, restart the job, note successful completiion and communicate downstream the resolution.
 
@@ -28,7 +28,7 @@ This one, using entirely new code, can be shared as an open source utiility.
 The goal is that an ETL developer could download and set up the framework in about one day, configure it for their particular jobs in another day, and be running massive partitioned job streams by day 3.
 
 
-#Here is a deeper perspective:
+# Here is a deeper perspective:
 
 Taking the viewpoint of an ETL resource, I want my script or process to be supplied all the input data (including all connection data), the location of the output data, any job sequence number, and to be guaranteed that I'm operating on the data sets required by business requirements, with no chance of gaps, overlaps, or undetected misses due to error states.  That keeps the ETL script simple as the most complex parts of the  logic is handled by the framework. It keeps the script simple and generic.
 
