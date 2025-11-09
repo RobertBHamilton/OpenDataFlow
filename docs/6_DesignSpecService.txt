@@ -1,4 +1,10 @@
-The service provides information or actions for a given job:
+The service is the module which interacts with core, submits sql to satisfy the functional requirements of the service, and return a result set.
+It is the layer which submits SQL and returns a json payload
+
+For dataflow, a particular job may call the service less than 5 times during lifecycle. Even with 500 jobs per day thats around 2000 calls per day. So low that there is no anticipated problem with opening and closing DB session with each.
+
+
+for dataflow, the service provides information or actions for a given job:
 
 1. Find the "next" dataid for input dataset for the job
 2. Provide connection info for all input and output data 

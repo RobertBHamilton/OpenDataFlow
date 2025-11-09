@@ -36,4 +36,7 @@
         
         After that we migrate all of the shell POC work to the service, supplied by java classes. That enables generic back end.
         
-       
+2025-11-06 Made design decision to start with shell utilitity to splat environment and update status, then test it into a wrapper.
+2025-11-07 All day wasting time reading contentious X posts about error handling, and getting junit to test the command line utility correctly
+2025-11-08 refactor, the core DataProvider changed to emit only result sets, the "service" dataflow which consumes it emits only json strings. Completed the service getJobData except for optional environment settings, and first draft of getJobData.sh which when complete fulfills the major functional requirement: we can invoke the script and get all the args we need to connect to input/output data sets.  For full functional closure we will add status update after that.
+NOTE: for the script we have added a new dependency. It uses jq.

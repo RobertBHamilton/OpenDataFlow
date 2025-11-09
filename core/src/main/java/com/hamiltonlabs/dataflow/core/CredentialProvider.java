@@ -23,8 +23,6 @@ import java.io.FileInputStream;
  */ 
 
 public class CredentialProvider{
-	public final static String TESTUSER="etl";
-	public final static String TESTENC="ZpLfE+uTYE2mdmjOPrukol3yu+cpAHBnmL6trHa9PHGj";
 
 /** populates the credentials Properties from encrypted string and passphrase.  
     We intend that all decryption will go through this method as a security gatekeeper.
@@ -70,11 +68,4 @@ public class CredentialProvider{
       * This is totally stubbed for testing other classes and will be replaced. 
       * 
       */
-    public static Properties getCredentials(String passphrase) throws java.security.GeneralSecurityException {
-        Properties props=new Properties();
-	String password=AESCryptor.decrypt(TESTENC,passphrase);
-        props.put("user",TESTUSER);
-        props.put("password",password);
-        return props;
-    }
 }

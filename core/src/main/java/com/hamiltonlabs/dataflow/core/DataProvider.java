@@ -10,6 +10,11 @@ import java.util.Properties;
 import java.util.List;
 import java.util.ArrayList;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+
+
 /** provide multi platform functionality for jdbc connections
  * sets and keeps schema,user,platform 
  * provides a simplified SQL execution that is used by DataFlow:
@@ -37,8 +42,9 @@ public class DataProvider implements AutoCloseable{
 
 
     /** open the connection and set default search path.
-     * @param url String jdbc connection url passed to the the connection manager to get an open connection
-     * @param schema String representing default schema for the connection 
+     * @param passphrase String used as key to decrypt the dataflow password
+     * @param props  filesystem path to the properties file
+     * @return this DataProvider object with an open connection
      */ 
     public DataProvider open(String passphrase,String props)throws SQLException,java.security.GeneralSecurityException,java.io.IOException{
         Properties creds=CredentialProvider.getCredentials(passphrase,props);
@@ -49,35 +55,33 @@ public class DataProvider implements AutoCloseable{
     }	
 
 
-   /** Get column list of query 
+    /** submit arbitrary SQL with bind variables 
      * @param SQL sql to run
-     * @return List of records comprising the result
+     * @param vars zero or more strings to bind to the statement
+     * @return Json in string
      */
-   public String runSQLHeader(String sql) throws SQLException{
-	String result=null;
-	PreparedStatement st=null;
-	StringBuilder cols=new StringBuilder();
+    public ResultSet runSQL(String ... vars) throws SQLException{
 	try{
-	    st=connection.prepareStatement(sql);	
-	    ResultSetMetaData meta=st.getMetaData();
-	    cols.append(meta.getColumnName(1));	
-	    for(int i=2;i<=meta.getColumnCount();i++){
-		cols.append(","+meta.getColumnName(i));
+            String sql=vars[0];
+	    PreparedStatement st=connection.prepareStatement(sql);	
+            for (int i=1;i<vars.length;i++){
+		st.setString(i,vars[i]);
 	    }
+	    ResultSet rs=st.executeQuery();
+	    return rs;
         } catch(SQLException e){
 	    e.printStackTrace();
             throw new SQLException(e);
-        }finally {
-	    st.close();
-	}
-        return cols.toString();
+        }
     }
 
-   /** Just runs an arbitrary SQL with no bind variables 
+
+    /** Just runs an arbitrary SQL with no bind variables 
      * @param SQL sql to run
      * @return List of records comprising the result
+     * Deprecated
      */
-   public List<String> runSQL(String sql) throws SQLException{
+    public List<String> runSQL_List(String sql) throws SQLException{
 	ArrayList<String> results=new ArrayList<String>();
 	try(
 	    PreparedStatement st=connection.prepareStatement(sql);	
@@ -92,11 +96,11 @@ public class DataProvider implements AutoCloseable{
         return results;
     }
 
-/* Converts a row in a result set to a comma delimitted string
- *  we must get the column types (blobs need special treatment, timestamps also need formatting).
- * This is _under construction_. For now we will handle the easy data types
- */
-     public String rowToString(ResultSet rs) throws SQLException{ 
+    /* Converts a row in a result set to a comma delimitted string
+     *  we must get the column types (blobs need special treatment, timestamps also need formatting).
+     * This is _under construction_. For now we will handle the easy data types
+     */
+    public String rowToString(ResultSet rs) throws SQLException{ 
 	ResultSetMetaData meta=rs.getMetaData();
 	int n=meta.getColumnCount();
 	StringBuilder rowString=new StringBuilder();
@@ -106,23 +110,11 @@ public class DataProvider implements AutoCloseable{
 	}
 	return rowString.toString();
      }
-   /** closes the connection.
+    /** closes the connection.
      * @throws SQLConnection if the close operation fails
      */
-   public void close() throws SQLException{
+    public void close() throws SQLException{
 	connection.close();
    }
 
-   /* for quick test during dev only */
-    public static void main(String[] args)throws Exception{
-        DataProvider p=new DataProvider();
-        p.open("jdbc:postgresql://localhost:5432/dataflow","dataflow");
-	String sql=args[0];
-	System.out.println(p.runSQLHeader(sql));
-	System.out.println("----------------------------------------");
-	for (String s:p.runSQL(sql)){
-		System.out.println(s);
-	}	
- 	p.close();
-    }
 }

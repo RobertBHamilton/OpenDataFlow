@@ -7,6 +7,7 @@ import org.junit.jupiter.api.TestInstance.Lifecycle;
 
 import java.security.GeneralSecurityException;
 import java.sql.SQLException;
+import java.sql.ResultSet;
 
 @TestInstance(Lifecycle.PER_CLASS)
 public class DataProviderTest{
@@ -31,13 +32,9 @@ public class DataProviderTest{
     /* run some sql and get expected result */
     @Test
     void runSQL() throws SQLException {
-	assertEquals(p.runSQL("select user,1 as anint").get(0),"etl,1");
-    }
-    /* tests both header line and metadata to get the column list */
-    @Test
-    void runSQLHeader() throws SQLException{
-	assertEquals(p.runSQLHeader("select user"),"user");
-	assertEquals(p.runSQLHeader("select user,1 as anint"),"user,anint");
+	ResultSet rs=p.runSQL("select user where ?='1'","1");
+	rs.next();
+	assertEquals(rs.getString("user"),"etl");
 	
     }
     

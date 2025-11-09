@@ -14,7 +14,17 @@
   <packaging>jar</packaging>
 
   <dependencies>
-    <!-- Add core dependencies here -->
-  </dependencies>
+    <dependency>
+      <groupId>com.hamiltonlabs</groupId>
+      <artifactId>core</artifactId>
+      <version>1.0.0</version>
+  </dependency>
+    <dependency>
+      <groupId>com.hamiltonlabs</groupId>
+      <artifactId>service</artifactId>
+      <version>1.0.0</version>
+  </dependency>
+</dependencies>
+
 </project>
 

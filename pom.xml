@@ -20,6 +20,7 @@
     <module>service</module>
     <module>platform</module>
     <module>resources</module>
+    <module>app</module>
   </modules>
 
 
