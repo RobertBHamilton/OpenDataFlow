@@ -24,9 +24,9 @@ How to run the demo locally
    chmod +x examples/myETL.sh
 
 5. Run a job through RunJob:
-   RunJob examples/myETL.sh
+   RunJob <passkey> etljob examples/myETL.sh
    (RunJob will provision the dataset-prefixed environment variables and the partition id, then invoke the script for the next READY partition.)
-
+    
 Notes
 - The examples are intentionally minimal and safe; they demonstrate the variable naming convention and usage pattern. In production you should not print or persist decrypted passwords; treat the values as sensitive.
-- If your installation uses slightly different variable names (e.g., uses *_encryptedpass instead of *_password), tell me the exact names and I'll update the example to match them.
+- The passkey is the key you used to encrypt the dataflow password and placed into encrypted property in dataflow.properties file. The utility will use the passkey to decrypt the password to that it can connect to dataflow database.
