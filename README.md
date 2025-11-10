@@ -7,7 +7,11 @@ It does this by keeping track of the status of every data partition, reporting  
 
 
 ## Description
-To use it with your executable, say ```myETL.sh```  use ```RunJob myETL.sh```.  Then ```RunJob``` will invoke your script after first setting some environment variables that provide connection to your datasets.  Then it captures the exit status of your script and uses it to update the status of the output data/partition so that downstream jobs know that it is now available to be consumed.
+To use it with your executable, say ```myETL.sh```  use 
+
+```RunJob myETL.sh```.  
+
+Then ```RunJob``` will invoke your script after first setting some environment variables that provide connection to your datasets.  Then it captures the exit status of your script and uses it to update the status of the output data/partition so that downstream jobs know that it is now available to be consumed.
 
 In the use cases below, there is a very remarkable feature.  **All three execute exactly the same code, and exactly the same command line**.  
 This means that large migration becomes recovery and catchup becomes happy path without touching the code, without manual cleanup, without special scheduling, and completely automatically.
@@ -49,6 +53,24 @@ That gives you postgres running in your localhost and you can connect to it with
 ````
 Then you can create database/schema/user and the initial tables.
 See the files  docs/datamodel.txt and docs/create_tables.sql for details 
+
+After you start the database you will need to encrypt your password (hopefully you have changed it from 'secretpass'). 
+You can encrypt the password using the supplied Cryptor class.  Build the package without tests the first time to get the Cryptor class.
+Encrypt with ```java -cp app/target/app-1.0.0.jar com.hamiltonlabs.dataflow.utility.Cryptor -e mysecretkey "secretpass"```
+The create a file called dataflow.properties, and replace the encrypted property value with your newly enctrypted password
+
+Contents of dataflow.properties
+```` 
+url=jdbc:postgresql://localhost:5432/dataflow
+user=etl
+schema=dataflow
+encrypted=ZpLfE+uTYE2mdmjOPrukol3yuzcpAHBnxL6trHa9PHGj
+````
+
+Protect the 'mysecretkey'! Don't put it in a web document like I just did :).
+
+The only place the password to the dataflow database is saved is in encrypted form in this properties file. Only somebody who posesses the encryption key 'mysecretkey' can decrypt it and gain access to the database.  This encryption key is not saved anywhere and can only be supplied in the command line (or in a special environment variable). 
+ 
 
 
 
