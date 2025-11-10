@@ -1,0 +1,7 @@
+This is a framework for orchestrating large scale job cycles which can partition and scale automatically, scale to large numbers of interdependent jobs, scale to arbitrary concurrency, scale to very large datasets having large numbers of partitions, and handle errors and restarts gracefully.
+
+The framework simplifies development, ops support, and job monitoring  by maintaining, curating, and providing data metadata, job metadata, and  status data to authorized users.
+
+
+
+

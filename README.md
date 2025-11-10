@@ -1,95 +1,77 @@
-# OpenDataFlow.core
+# OpenDataFlow
+
+## Overview
+DataFlow is a modest utility which has only one purpose: to assist in orchestration of batch job cycles which operate on partitioned or time-sliced data.
+It is designed to scale in any of four dimensions:  large number of different jobs, concurrency of jobs, long dependency chains of jobs, and large number of partitions.
+It does this by keeping track of the status of every data partition, reporting  on status when needed, and using the status to determine a partition of data sets which is ready to be consumed by a job.   Our one purpose is to associate that data to a particular job run and provide that info at runtime.
 
 
-DataFlow is a reference implementation for managing ETL workflow in the most challenging of tasks -- where very large volumes of data are to be handled and need to be partitioned and processed in a highly parallel manner, yet required to  have robust error detectin, seamless error recovery and restartability, and the ability to automatically partition and scale.  These are the characterist requirements for a typical well-designed Big Data data flow.
+## Description
+To use it with your executable, say ```myETL.sh```  use 
 
-# History.
+```RunJob myETL.sh```.  
 
-1. Many years ago, I was holding a devops pager for the entire datawarehouse feed for a major corporation. When a job failed the devops guy was supposed to root cause the failure, make whatever cleanups were needed, restart the job, note successful completiion and communicate downstream the resolution.
+Then ```RunJob``` will invoke your script after first setting some environment variables that provide connection to your datasets.  Then it captures the exit status of your script and uses it to update the status of the output data/partition so that downstream jobs know that it is now available to be consumed.
 
-   One weekend because of a network misconfiguration deployed on Friday, all 700 jobs running each running on one of a half dozen possible servers, in the daily batch cycle failed.  File paths for either extracts or loads were hardcoded in scripts, as will as connection strings to the databases either extracted or loaded, logs were not systematically saved, and filesystem flags  were the only clue as to the final status of any job. 
+In the use cases below, there is a very remarkable feature.  **All three execute exactly the same code, and exactly the same command line**.  
+This means that large migration becomes recovery and catchup becomes happy path without touching the code, without manual cleanup, without special scheduling, and completely automatically.
 
-Due dilligence requires the basic questions need to be answered: was the data really ready when the job ran, was it running on the right data (the expected sequence number), was it in the physical location expected (correct environment,fileserver and path?), was it validated, was it safe to access at the time? Even that basic preliminary root cause analysis involved locating the specific flag files, extracting the job sequence number, then diving into the code to find location of data sets and then examining the data set to determine the issue, a process which was tedious, time consuming and error prone.
+This pays enormous benefits for operational support, fast and reliable recovery, and tedious data migrations. 
 
-After that mess was fixed, the natural postmortem thought is, wouldn't life be simpler if we actually captured the information necessary to answer those questions? What if we didn't need tribal knowledge to erase or to to create file system flags and restart in the exact order needed?  
+To use it with your executable, say ```myETL.sh```  use ```RunJob myETL.sh```.  Then ```RunJob``` will invoke your script after first setting some environment variables that provide connection to your datasets.  Then it captures the exit status of your script and uses it to update the status of the output data/partition so that downstream jobs know that it is now available to be consumed.
 
-That lesson is what motivated the principles that are built into this framework.
+### Here are three use cases
 
+* **The happy path**:  Suppose that you have a script called ```myETL.sh``` and you want it to run once a day but only when the input data is ready. You kick off ```myETL.sh``` any time you like, using ```RunJob myETL.sh```.  If the data is not ready yet then it quits. If the job happens to running already or if it has already run successfully then it doesn't run again. Otherwise it runs and sets the output status to ready.  
 
-2.  A few years after that, I took it upon myself to extract a large data store from a relational database and load it into a Big Data platform.  It was roughly 100TB in size but would be manageable if sharded into 10,000 extract jobs of 10GB each followed by load jobs into the Big Data.  If each job was 20 minutes extract and 20 minutes load then the migration would be 7000 hours total. So it would be prudent to enable 10x concurrency and complete the task in 4 weeks, but be able to scale up and down the concurrency at will because others would be using the production servers at times. But even so, it is no fun to keep eyes on glass for 700 hours. The orchestration has to be very robust. A 1% job failure rate is quite possible on Hadoop mapreduce so restartability if also a priority.
-It turns out that paying attention to the five questions (ready?right?location?valid?safe?) and keeping the answers into a data store was sufficient to make this into a fire-and-forget script.  
+* **Recover from large scale outage**:  Suppose you have had a platform outage and are several time cycles behind. To catch up you just do the ```RunJob myETL.sh``` repeatedly and each time you run it then it will give you a different partition automatically until you are caught up.  If you have other jobs that depend on ```myETL.sh``` you just run them repeatedly and they will take the data partitions when they are finally ready.  
 
-3. In the years following, I had other opportunities to do large scale data migration/massive batch jobs. I typically just unpacked my dataflow scripts, configured them for the current jobs and let them run. I'd check in every few days and restart any that failed, but there was little more than 5 minutes a day to manage it.
-
-4. The shell script implementation and local storage for data status was fine for personal use and any one-off months long task, and it impressed executive leadership nicely, but it was not so good for handing off to others who may not be so comfortable with services written purely in scripting language.
-So I've decided to take the lessons learned and apply them to a framework written from scratch, but now using enterprise-class data store and service.
-This one, using entirely new code, can be shared as an open source utiility.
-
-The goal is that an ETL developer could download and set up the framework in about one day, configure it for their particular jobs in another day, and be running massive partitioned job streams by day 3.
+* **Very large data migration to do**: Suppose it is too large to run all at once.  But the data has some date column such as modified_date and is well distributed on it.  You decide to break up the migration into batches corresponding to a calendar day values of modified_date.  Now you have thousands of jobs to run. You just add a "ready" status on the input dataset for each job, and run your migration script knowing that each time you get a different partition, guaranteed no skips and no duplication.  In fact if you are impatient you can run multiple streams concurrently, each one periodically performing exactly the same invocation: ```RunJob myETL.sh```
+The dataflow utility handles all the orchestration logic.
 
 
-# Here is a deeper perspective:
+## Getting Started
 
-Taking the viewpoint of an ETL resource, I want my script or process to be supplied all the input data (including all connection data), the location of the output data, any job sequence number, and to be guaranteed that I'm operating on the data sets required by business requirements, with no chance of gaps, overlaps, or undetected misses due to error states.  That keeps the ETL script simple as the most complex parts of the  logic is handled by the framework. It keeps the script simple and generic.
+This project requires 
+* Linux operating system is prefered. It has only been tested on Ubuntu.
+* bash, since the RunJob and utility.sh are both bash scripts
+* maven to build the project
+* jq which is a command line json processor. https://jqlang.org/  Install in ubuntu with ``` sudo apt install -y jq```
+* postgres   postgresql-42.7.3.jar for jdbc driver https://jdbc.postgresql.org/   You can install in ubuntu with ```sudo apt install libpostgresql-jdbc-java```
+* psql, postgres client. Not required for the project but you will need it to initialize the database  ```sudo apt install postgresql-client```
+* json-java  json-20250517.jar https://github.com/stleary/JSON-java  
+* A functional postgres database. You will need to have a database named dataflow, schema dataflow and user named etl.
 
-Taking the perspective of an ETL resource, I want my script or process to be supplied all the input data (including all connection data), the location of the output data, any job sequence number, and to be guaranteed that I'm operating on the data sets required by business requirements, with no chance of gaps, overlaps, or undetected misses due to error states.  That keeps the ETL script simple as the most complex parts of the  logic is handled by the framework. It keeps the script simple and generic.
+After your first mvn compile you can also snag the two jar files from your .m2 directory. They need to be on the CLASSPATH at runtime.
+I think the easiest way to satisfy the postgres requirement is to install podman on your system and then start it up with something like:
+````
+podman run -p 5432:5432 --name pg -e POSTGRES_PASSWORD=secretpass -d docker.io/postgres
+````
+That gives you postgres running in your localhost and you can connect to it with
+```` 
+/usr/bin/psql -U etl  -d dataflow -h localhost
+````
+Then you can create database/schema/user and the initial tables.
+See the files  docs/datamodel.txt and docs/create_tables.sql for details 
 
+After you start the database you will need to encrypt your password (hopefully you have changed it from 'secretpass'). 
+You can encrypt the password using the supplied Cryptor class.  Build the package without tests the first time to get the Cryptor class.
+Encrypt with ```java -cp app/target/app-1.0.0.jar com.hamiltonlabs.dataflow.utility.Cryptor -e mysecretkey "secretpass"```
+The create a file called dataflow.properties, and replace the encrypted property value with your newly enctrypted password
 
-1. capability to partition the data into chunks which can be independently processed, and the framework should associate a unique identifier to each chunk in order to track its status.  The undivided data set is called DataSet, the discrete partitions of it are called DataChunks.
+Contents of dataflow.properties
+```` 
+url=jdbc:postgresql://localhost:5432/dataflow
+user=etl
+schema=dataflow
+encrypted=ZpLfE+uTYE2mdmjOPrukol3yuzcpAHBnxL6trHa9PHGj
+````
 
-2. Status of every data chunk is maintained and available to the ETL jobs. This status includes whether it is ready to consume, or still being produced, complete, or error or (sometimes important) being consumed.
+Protect the 'mysecretkey'! Don't put it in a web document like I just did :).
 
-3. Job Status. every job is associated with 1 or more data chunks input and produces one or more data chunks output. In practice, job status (running,failed,complete,validated) is the same as the status of its output data, so job status is denormalized into data status table. More specifically since every data set is uniquely produced as output of some job run, jobID (name of script for example) + dataID+datasetID serves to uniquely identify the job producing that data chunk.
-
-4. transaction model. The data is to be transformed and forwarded downstream, the handling of it requires the kind of robustness that is usually supplied via transaction semantics.
-
-5. Though not strictly necessary, jobs may require additional metadata, which can be constructed by the framework and supplied to them when they are started.
-
-
-This is the core component of OpenDataFlow utilities. It handles all accesses to the underlying data store of the framework. 
-
-OpenDataFlow treats the data handoff between ETL processes in a transactional model. The handshake requires certain guarantees made by the producer in order that the consumer may accept the data. This is a data centric model in that these guarantees involve characteristics or status of the data being handed off. It is a departure from traditional job schedulers which are typically process centric instead. Where the traditional schedulers make assumptions about the data status, DataFlow instead specifically tracks the status and permits processes to rely on reliable data status.
-
-The DataFlow core components manage three sets of information.
-
-1. Real time status of all data sets tracked by the tool
-2. Metadata for all tracked data sources
-3. Metadata for fully registered jobs
-
-
-
-# History and acknowledgements.
-The concepts and design pattern concepts that I have been evolving and refining over several decades during my career as an ETL software engineer. It arises from career experience that spans several fortune 50 companies and a few smaller ones.  This design pattern is designed specifically to address the issues and headaches encountered during this time while performing tasks in involing erprise scale data movement. We are startng this program from scratch, for the first time designing a framework from the ground up.  It a core framework modeled on concepts which have accumulated over the years with experience and learning. It is also a reference implementation built on the framework. The reference framework itself will be fully functional tools useful for enterprise class applications.
-
-# Motivation
-
-After doing root cause analysis, impact analysis, tracing data lineage and other data forensics, the questions often asked are "was this task more tedious and less reliable than it should be?" "Are there ways to speed up the investigation and make it more reliable?"  
-Once the outage has been root caused, the question that follows is "What can be done to reduce the occurence of outage? Once failure modes are identified and root caused the natural question is can more be done to reduce the likelihood of the outage to occure again? Can we minimize factors that contribute to the root cause.  
-While recovoring from the outage, are there manual steps involved in restarting processes, determining if data dependencies are met, cleaning up stale files or flags?
-Can we reduce the amount of specialized knowledge needed to restart the entire flow, and reduce the complexity of the tasks.
+The only place the password to the dataflow database is saved is in encrypted form in this properties file. Only somebody who posesses the encryption key 'mysecretkey' can decrypt it and gain access to the database.  This encryption key is not saved anywhere and can only be supplied in the command line (or in a special environment variable). 
  
-The answer to all these questions is most certainly "yes".  However, traditional job schedulers however sophisticated they are, may not provide the kind of functionality needed to deal with these specific questions. As evidence of that, I would cite many incidents in which the principle investigator manually performs all of data mining, root cause and correction, manual cleanups and data dependency analysis, and when each job is ready for a relatively clean start they then ask scheduling services to restart failed jobs, possibly one by one.
 
-These tend to be expensive exercises. The more that we can automate the capture of useful information at runtime, automate the dependency tracking, automate or systematize the logic, and make job starts/restarts nearly touchless, the more reliable the enterprise data/analytics platform will become.
-
-In this author's experience over nearly three decades of ETL developement and support, almost all operational issues with data flow come about because of inaccurate assumptions made with respect to these 5 questions:
-
-# The transactional model
-
-
-Our approach is to treat each data set consumed or produced by a job as an indivisible unit, and one that is passed from output of one job to input of the next with the same kind of checks and controls that you would apply to any data transfer protocol.
-
-Simply put, in order for a job to accept a chunk of data for consumption, it needs to confirm the answer "yes" to each of these five questions.
-
-1. Is the data ready
-2. Is it the correct data
-3. Is the data in the physical location the consumer expects
-4. Is the data validated
-5. Is the data safe to access or modify
-
-All data transfer protocols are built around these questions one way or another. It is quite reasonable to posit that ETL building on larger blocks of data have comparable requirements.  These are also the first questions the analyst must answer when tasked with finding root cause of job failures. 
-
-Both the task of the analyst and the logic used by the consumer are simplified if this information is systematically captured at run time and directly used for coordination between jobs having data dependencies.
 
 
 

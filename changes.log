@@ -1,0 +1,52 @@
+2025-04-03 added changes file. new branch dev2
+2024-06-08 initial commit. Mavenify project
+2024-06-13 add core components and tests
+2025-11-01 document project architecture and vision 
+2024-11-02 work on design specs for service and database
+2024-11-03 work on design specs for service and database
+2025-11-04 created schema and tables
+2025-11-05 work on sql for discovery service and environment splat.
+           Just to get it working I used postgres extension row_to_json and splat into environment by parsing in shell script
+	   Will migrate to service utilities when they are added, later. 
+
+        Some shell scripts as a proof of concept.  
+        These submit SQL directly to database and parse outputs, will be replaced by jdbc connections and ANSI sql with no extensions.  
+        The parsing of the json output is also to be replaced with some utility.
+        
+        1. Do . ./getdataid loadbob first. 
+            This submits a SQL to get the next dataid to run for job loadbob
+            This is proof of concept for the primary logical requirement.
+            Visually obtain dadatasetid from the output and the dataid from the output
+            Suppose that value is "bobin"
+        
+        2. Do . ./getIn.sh bobin
+            This splats environment variables bobin_hostname, bobin_database, bobin_username, bobin_schemaname 
+        
+            The last line demonstrates how to construct a psql command using them
+            Next we will have a decrypt for the bobin_encryptedpass variable and put it into PGPASSWORD as required by psql
+            This is proof of concept of the secondary requirement, get useful parameters.
+            If we can get a single string of arguments to add to command line then the script is completely generic for all psql jobs.
+        
+        
+        We thus have the get-next-dataset-chunk-dataid and the get-connection-params-for-dataset in shell scripted form using postgres
+        Follow up the same ideas for any other database connection, and adapt to file based work.
+        Nest step to tie up loose end we decrypt encryptedpass.
+        Next step after that we add the begin-process and end-process methods. 
+        That makes a serviceable ETL framework already but only for bash scripts and postgres dataflow database.
+        
+        After that we migrate all of the shell POC work to the service, supplied by java classes. That enables generic back end.
+        
+2025-11-06 Made design decision to start with shell utilitity to splat environment and update status, then test it into a wrapper.
+2025-11-07 All day wasting time reading contentious X posts about error handling, and getting junit to test the command line utility correctly
+2025-11-08 refactor, the core DataProvider changed to emit only result sets, the "service" dataflow which consumes it emits only json strings. Completed the service getJobData except for optional environment settings, and first draft of getJobData.sh which when complete fulfills the major functional requirement: we can invoke the script and get all the args we need to connect to input/output data sets.  For full functional closure we will add status update after that.
+NOTE: for the script we have added a new dependency. It uses jq.
+2025-11-09 added the RunJob.sh script with supports the full pipeline. 
+    Added the data status updates into Dataflow service class. 
+    Added a utility.sh which has command line utilities for manipulationg the dataflow data.
+    RunJob wraps the script and provides the coordination logic without changing even one line in the ETL script. 
+    Still have some cleanup to do in the Dataflow class and the Junit tests 
+
+    TODO: remove the horrid mess of the getJobData method, correct a bad desicion that added side effects. Have to split it up. 
+      have all junit tests clean up the database and initialize with data if needed before running, 
+      build some reference job flows.  
+      

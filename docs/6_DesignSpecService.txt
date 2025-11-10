@@ -1,0 +1,58 @@
+The service is the module which interacts with core, submits sql to satisfy the functional requirements of the service, and return a result set.
+It is the layer which submits SQL and returns a json payload
+
+For dataflow, a particular job may call the service less than 5 times during lifecycle. Even with 500 jobs per day thats around 2000 calls per day. So low that there is no anticipated problem with opening and closing DB session with each.
+
+
+for dataflow, the service provides information or actions for a given job:
+
+1. Find the "next" dataid for input dataset for the job
+2. Provide connection info for all input and output data 
+3. Accept status updates for the job
+4. Acquire or release locks for the data chunks involved
+
+Steps 1 and 2 can be combined, and the appropriate lock automatically acquired when 1 is performed.
+All the required data can be returned in a single json string, parsed by a script utility.
+When status is updated to a terminal status (READY or FAILED) locks are automatically released
+
+If a job FAILS then we can delete the job-local locks, but if the system crashes before the deletes, they will be stale.
+This would cause restart of the job to be blocked. If RESUBMIT we can have an extra task to delete.
+
+FindNext(jobid,jobencryptionkey){
+
+   EITHER 
+      dataid is minimum of  dataid/jobid status of RESUBMIT
+	  1. having no global read lock on any input dataset/dataid
+   OR    
+      dataid is minimum of the set of all dataid 
+	  1. having no global write lock on #if OUTPUT not READY or RUNNING
+          2. for which all jobid.inputdatasets/dataid/jobid 
+              a. have no local-lock        # thus INPUT  no rows at all
+              b. have no global read lock  # thus OUTPUT and READY
+
+   upsert an OUTPUT row in datastatuis jobid.outputdataset/dataid/jobid with status RUNNING
+
+   upsert an INPUT row for each jobid.inputdatas with status running
+
+   return a json string with {dataid,jobid,metadata for output, metadata for all input, metadata for environment vars}
+      metadata for for all datasets include decrypted passwords using the jobencryptionkey
+}
+
+JobSuccess(jobid,dataid, jobencryptionkey){
+      update OUTPUT row for jobid/dataid with READY
+      remove all INPUT rows for jobid/dataid
+}
+
+JobFAIL(jobid,dataid, jobencryptionkey){
+      update OUTPUT row for jobid/dataid with FAILED
+      remove all INPUT rows for jobid/dataid
+}
+
+/* called directly from support. Alternatively support may decide to update job status to RESUBMIT */
+JobForce(jobid,dataid){
+   upsert an OUTPUT row in datastatuis jobid.outputdataset/dataid/jobid with status RUNNING
+   upsert an INPUT row for each jobid.inputdatas with status RUNNING
+   return same structure as in FindNext
+}
+    
+

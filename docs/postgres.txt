@@ -1,10 +1,10 @@
 # Set up postgress to run in a podman image and forward the port
 
-podman run -p 5432:5432 --name pg -e POSTGRES_PASSWORD=plugh -d docker.io/postgres
 
+podman run -v pg:/var/lib/postgresql/18/docker -p 5432:5432  --name pg -e POSTGRES_PASSWORD=mysecret -d docker.io/postgres
 # Set up the etl user and the schema for him to use. 
 
-CREATE USER etl WITH ENCRYPTED PASSWORD 'plugh';  
+CREATE USER etl WITH ENCRYPTED PASSWORD 'mysecret';  
 CREATE DATABASE dataflow;  
 GRANT ALL PRIVILEGES ON DATABASE dataflow TO etl;  
 \c dataflow;  

@@ -1,0 +1,56 @@
+For the critical service, the task is, given jobid, find the first input dataid for which all input datasets are ready and non of them are being processed, and for which the output dataset is not under a lock.
+
+**** The datastatus table needs to be locked for this query and subsequent insert of OUT/RUNNING row. ****
+
+TODO: farm this out to appropriate docs
+
+
+/* find dataid for which all inputs have an OUT record that is READY These are candidates  */
+
+select j.datasetid,d.dataid,d.datasetid,d.status  from job j left join datastatus d on j.datasetid=d.datasetid and d.locktype='OUT' and d.status='READY' where j.itemtype='IN' and j.jobid='loadbob';
+
+/* Job-level readlocks to exclude if row exists then there is read lock on the input dataset for the job loadbob */
+select d.*  from job j join datastatus d on j.jobid='loadbob' and j.itemtype='IN' and d.locktype='IN' and j.datasetid=d.datasetid 
+
+/* global lock to exclude, with single  exception of one marked 'RESUBMIT'. */
+select d.dataid from job j join datastatus d on j.jobid='loadbob' and j.itemtype='OUT' and d.datasetid=j.datasetid and d.dataid=x.dataid where d.status != 'RESUBMIT';
+
+/* combine above to get READY and no job-local read lock on IN, and no global lock on OUT */
+
+select x.dataid,x.jobid from  (select j.datasetid,j.jobid,d.dataid  from job j left join datastatus d on j.datasetid=d.datasetid and d.locktype='OUT' and d.status='READY' where j.itemtype='IN' and j.jobid='loadbob' )x where not exists (select d.dataid from job j join datastatus d on j.jobid=x.jobid  and j.itemtype='IN' and d.locktype='IN' and j.datasetid=d.datasetid and d.dataid=x.dataid) and not exists (select d.dataid from job j join datastatus d on j.jobid=x.jobid and j.itemtype='OUT' and d.datasetid=j.datasetid and d.dataid=x.dataid where d.status != 'RESUBMIT')  order by x.dataid limit 1;
+
+/*  TEST */
+dataflow=> select * from job;
+  jobid  | itemtype | datasetid | itemvalue |          modified          
+---------+----------+-----------+-----------+----------------------------
+ loadbob | OUT      | bobout    |           | 2025-11-05 18:20:14.14095
+ loadbob | IN       | bobin     |           | 2025-11-05 18:40:15.572576
+(2 rows)
+
+dataflow=> select * from dataset;                                                                       
+ datasetid | hostname  | database | schemaname | tablename | username | encryptedpass 
+-----------+-----------+----------+------------+-----------+----------+---------------
+ bobin     | localhost | dataflow | testdata   | bobdata   | etl      | blah
+ bobout    | localhost | dataflow | testdata   | bobdata   | etl      | blah
+(2 rows)
+
+
+dataflow=> select * from datastatus;
+ datasetid |  jobid   | dataid | locktype | status  |          modified          
+-----------+----------+--------+----------+---------+----------------------------
+ bobout    | loadbob  | 1.1    | OUT      | READY   | 2025-11-05 17:44:22.529432
+ bobout    | loadbob  | 1.0    | OUT      | READY   | 2025-11-05 17:44:28.830406
+ bobin     | otherjob | 1.1    | OUT      | READY   | 2025-11-05 18:51:25.847234
+ bobin     | otherjob | 1.2    | OUT      | READY   | 2025-11-05 18:51:32.666023
+ bobin     | loadbob  | 1.1    | IN       | RUNNING | 2025-11-05 18:52:26.372454
+(5 rows)
+
+
+dataflow=> select x.dataid,x.jobid,x.datasetid from  (select j.datasetid,j.jobid,d.dataid  from job j left join datastatus d on j.datasetid=d.datasetid and d.locktype='OUT' and d.status='READY' where j.itemtype='IN' and j.jobid='loadbob' )x where not exists (select d.dataid from job j join datastatus d on j.jobid=x.jobid  and j.itemtype='IN' and d.locktype='IN' and j.datasetid=d.datasetid and d.dataid=x.dataid) and not exists (select d.dataid from job j join datastatus d on j.jobid=x.jobid and j.itemtype='OUT' and d.datasetid=j.datasetid and d.dataid=x.dataid where d.status != 'RESUBMIT')  order by dataid limit 1;
+ dataid |  jobid  | datasetid 
+--------+---------+-----------
+ 1.2    | loadbob | bobin
+(1 row)
+
+
+

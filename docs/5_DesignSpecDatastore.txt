@@ -1,0 +1,115 @@
+
+Based on FunctionalRequirements,  we will need to implement cooperative locking on the data chunck level.
+
+The required locks are to be based on data status.  For example if a job is producing (RUNNING status) a data set then no other job should be allowed to write to it and no other job should use it as input, so there is  an implied global r/w lock.
+
+For data that is in READY status however, jobs are free to consume the data for their tasks. They still need a read lock: two concurrent jobs of the same type cannot be using the same file because that would cause duplicate runs and possible data corruption.  To support cooperative locking at that level, input data chunks will need to have a "job-local" read lock for each job/input/chunk combination.  
+
+This could be implemented in a straightforward manner by using two lock tables, a global RW lock and a file-local R lock. They could be combined into a single lock table by adding a lockType field with values of globalRW or localR.
+
+Third option is to denormalize the lock information into the data status table, which is possible because the locks are determined by the data STATUS only.
+In this case to support job-local locks we need to have rows for each consuming job so we add jobid to the primary key.  It is now dataset/dataid/jobid.
+
+This can be a useful denormalization because it simplifies reporting as well as search for unlocked input data chunks.
+
+----------Status --> lock status----------------
+
+The output_data/chunk/job in RUNNING is locked. It can update to READY to permit downstream consumption.
+
+In other words any consumer of a dataset/dataid and should be blocked from running on that chunk, and any producer should be blocked from attempting to produce it  unless the OUTPUT dataid is in READY state. This implies a global read/write lock.
+
+Recall the primary key is dataset/dataid/jobid.  
+    jobid+dataid is the same as a process id. 
+    dataset+dataid is the same as object to be locked.
+
+The record includes a locktyper column flags whether it referes to an ouput or input.
+
+if OUTPUT:
+   If status is READY or RUNNING then there is a global write lock on the data item.
+   If status is RUNNING then job is writing to the output and there is a global read/write lock
+   If status is RESUBMIT there is global read lock, but not write, as framework is free to resubmit that jobid+dataid.
+   Any other status, PENDING, HOLD, etc indicate an unsual treatment and should be treated as r/w lock by default
+   if an OUTPUT row does not exist for this dataset/dataid then there is no global lock.
+
+   Note that this does not rely on jobid because we assume only one jobid can produce an output data set.
+
+
+if INPUT:
+   lock is job-local read lock. If locked no other job with the same id can use it, but different jobs are allowed to use it. 
+   if status is RUNNING then that means the jobid is consuming the dataset/dataid, and job-local read lock is implied.
+   if status is DONE, then the job has completed on that data chunk and should not run again using it. read lock is retained.
+   if status is ERROR, in default mode we want to rerun so it implies that read lock is released
+   if there is no INPUT row in datastatus for this dataset/dataid/jobid then there is no lock.
+   if there is any other status then behavior is undefined.
+
+---- When are locks OBTAINED ----
+OUTPUT When a job runs, the framework will automatically put a global lock on the output data set as implied when the datastatus row is inserted
+INPUT: When a job runs, all input data sets get a job-local read lock as implied when each input datastatus row is inserted
+
+---- to RELEASE a lock ----
+if OUTPUT:  remove the row from datastatus table
+if INPUT: remove the row from datastatus -or- in default mode change status to ERROR
+
+---- Scenario 1 happy path ---------
+Suppose jobA is configured to produce output DataB with input DataA.
+
+The framework looks for 
+
+  1. dataid of DataA OUTPUT which is in READY status  
+  2. no global write lock DataB/dataid OUTPUT 
+  3. no job-local read lock for INPUT  job/DataA/dataid.  
+
+If it finds such a dataid, then the output dataid is assigned the same value as input, 
+then jobA is launched with the appropriate input/output datasets and dataID.
+
+If job is complete successfully, 
+
+  1.  the OUTPUT record DataB/dataid/job updated to READY
+  2.  the INPUT records DataA/dataid/job updated to DONE 
+
+If job fails, 
+
+  1. the OUTPUT for DataB/dataid/jobid to ERROR
+  2. all INPUT  records for DataA/dataid/jobid are set to ERROR, 
+
+
+On success, status ensures that jobA will not run again on the same data, and that downstream jobs are clear to consume its output.
+On failure, status enables that jobA will run again, and that downstream will not run on the failed data
+
+(by default we will use output dataid = input dataid, catering to large batch cycles such as daily warehouse feeds).
+
+
+---------   scenario. dependent job ----------------------------
+Suppose JobA is configured to produce output DataA. It is invoked with dataid 1.
+JobA adds an OUTPUT record in datastatus with RUNNING status.
+When JobA completes then it updates status with READY, indicating that the data is ready to consume.
+
+JobB is configured to read input DataA and to produce output DataB.  
+The framework looks for a dataid of DataA which is in READY status for which there is no global read lock for that dataID and no job-local read lock for that job/data/dataid. It discovers Data/dataid from the datastatus table and thus runs on dataset=DataA and dataid=1. JobB inserts an input row in datastatus for that input dataset, and inserts a row for its own configured output dataset for which dataset/dataid/jobid = DataB/1/JobB.  (by default we will use output dataid = input dataid, catering to large batch cycles such as daily warehouse feeds).
+
+We note that now JobB has a job-local read lock on DataA/dataid=1 and thus if another JobB is run conncurently it skip this dataid and look for the next one.  
+---   Scenario 1 JobB succeeds -----
+If JobB completes successfully:
+  1 it sets the status on DataA/1/JobB to DONE  (retain job-local lock to prevent duplication)
+  2 it sets the status on DataB/1/JobB to READY (enables downstream jobs to consume it)
+
+
+---  Scenario 2, JobB fails -----
+if JobB fails:
+  1 it sets the status on DataA/1/JobB to ERROR  (release job-local lock to enable rerun)
+  2 it sets the status on DataB/1/JobB to ERROR (prevents downstream jobs to consume it)
+
+  after jobB fails, if resubmits, the framework again finds DataA/1 is READY  and status is ERROR then by input rule 3 it reruns
+
+--- Scenario 3, previous job failed undetected ---------------
+Suppose jobA completes then jobB runs but fails. On investigation we find that JobA data was invalid.
+We set status row for DataA/1/JobA OUTPUT to RERUN 
+Since JobB is in ERROR we do not need to release job-local locks on it. 
+
+
+
+
+
+
+ 
+   

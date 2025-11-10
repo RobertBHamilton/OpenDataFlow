@@ -1,0 +1,22 @@
+# podman must be installed
+
+podman volume create pgdata
+podman run -v pgdata:/var/lib/postgresql/18/docker -p 5432:5432  --name pg -e POSTGRES_PASSWORD=mysecret -d docker.io/postgres
+
+# one time create the dataflow schema and user
+plsql -U postgres -h localhost 
+create user etl with encrypted password 'mysecret';
+create database dataflow;
+GRANT ALL PRIVILEGES ON DATABASE dataflow TO etl;  
+\c dataflow;  
+CREATE SCHEMA dataflow AUTHORIZATION etl;
+
+
+# set this up to run sql at least until you get the functionality from dataflow
+# you should not use pgpassword in production
+alias sql='psql -U etl  -d dataflow -h localhost'
+export PGPASSWORD='mysecret'
+
+sql -c 'select user'
+# run the create_tables.sql to create the tables
+

@@ -1,0 +1,30 @@
+The non functional requirements:
+
+1. Will supply the ETL script with next available input dataset and job metadata at runtime and manage all status data sent to it from the ETL.
+2. Simple and easy for ETL developer to integrate his ETL script with the framework. 
+3. Simple and easy for ETL developer to use the framework in his script. It should be a fast and easy as two or three lines to request metadata and 
+
+In particular, the framework offloads from the Developer the responsibility to:
+   ensure no duplication runs 
+   ensure no gaps in the data feed
+   ensure no accidental timing errors cause data corruption 
+   communicate with concurred tasks
+   handle resubmissions of failed jobs
+   log status updates and report summaries
+   maintain dataset metadata and job metadata
+
+The framework will NOT:
+
+1.  manage global resources such as global temporary tables.  These 
+    would be a barrier to concurrent operation, so ETL jobs will have 
+    to run non-concurrently if they intend to use such global objects.
+2.  store or maintain any executable code. Does not schedule jobs. 
+    This restriction reduces functional flexibility but prevents code injection exploits.
+3.  Support complex relationships between input data files having different partitions. 
+    For example, for a daily batch cycle all input data files would have the same date used as partition id. 
+
+
+
+
+
+

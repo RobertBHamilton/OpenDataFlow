@@ -1,0 +1,26 @@
+It is to be written in java with classes which expose methods that will be used in a service pattern.  The "service pattern" means that I provide option to invoke the java classes directly  from command line to provide the needed functionality and command-line classes will be in utility module, but wll will organize them the same way I would a service. 
+
+The services provide specialized interaction with a database component with well defined data model and schema. All database interaction will be strictly ansi sql. 
+Except that the initial creation of database, dataflow schema, tables are be platform dependent. The ansi sql will be treated as resources, 
+The DDL scripts will be bundled into creation-platform module. Will use factory+strategy pattern to handle different database platforms.
+
+dataflow/
+├── pom.xml                          # Parent POM (aggregator)
+├── core/                            # Core logic and domain models
+│   └── src/main/java/com/hamiltonlabs/dataflow/core/
+├── utility/                        # command line utilities and helpers
+│   └── src/main/java/com/hamiltonlabs/dataflow/utility/
+├── service-lib/                    # Service-layer interfaces and stateless logic
+│   └── src/main/java/com/hamiltonlabs/dataflow/service/
+├── database/                       # ANSI SQL interaction and data access layer
+│   └── src/main/java/com/hamiltonlabs/dataflow/database/
+│   └── src/main/resources/sql/    # SQL queries and scripts
+├── creation-platform/              # Platform-specific schema creation logic
+│   └── src/main/java/com/hamiltonlabs/dataflow/platform/
+│   └── src/main/resources/schema/ # Platform-dependent DDL scripts
+├── sql-resources/                  # Optional: shared SQL assets if reused across modules
+│   └── src/main/resources/sql/
+└── README.md
+
+
+

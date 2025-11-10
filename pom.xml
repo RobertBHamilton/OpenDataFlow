@@ -4,13 +4,25 @@
   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-  <groupId>hamilton-labs</groupId>
-  <artifactId>OpenDataFlow_core</artifactId>
-  <version>1.0-SNAPSHOT</version>
+<groupId>com.hamiltonlabs</groupId>
+  <artifactId>dataflow</artifactId>
+  <version>1.0.0</version>
+  <packaging>pom</packaging>
+  <name>Dataflow Project</name>
 
-  <name>OpenDataFlow_core</name>
   <!-- FIXME change it to the project's website -->
   <url>http://www.example.com</url>
+
+  <modules>
+    <module>core</module>
+    <module>utility</module>
+    <module>database</module>
+    <module>service</module>
+    <module>platform</module>
+    <module>resources</module>
+    <module>app</module>
+  </modules>
+
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
