@@ -39,14 +39,16 @@ declareEnv(){
   key=$(echo "$entry" | jq -r '.key')
   value=$(echo "$entry" | jq -r '.value')
 
-  if [[ "$key" != "today"* ]];then   /* dont pollute the env with the automatic dataset */
-
+# FIXME there is some bug when value contains a path symbol */
+  if [[ "$key" =~ ^today ]];then
+     export a=$a;	#do nothing dont pollute the env with the automatic dataset */
+  else    
     # Emit export statement
     echo "declare -x $key=\"${value}\";"
 
 
     # Handle encrypted passwords
-    if [[ "$key" =~ ^(.*)_encryptedpass$ ]]; then
+    if [[ "$key" =~ "^(.*)_encryptedpass$" ]]; then
       prefix="${BASH_REMATCH[1]}"
       decrypted=$(decrypt "$value")
       echo "declare -x ${prefix}_password=\"${decrypted}\";"
@@ -55,6 +57,7 @@ declareEnv(){
 done
 }
 
+echo "$declareEnv"
 env="`declareEnv`"
 # uncomment if you need to debug echo "$env"
 source <(echo "$env")

@@ -32,6 +32,10 @@ case  "$cmd" in
     "RunSql"|"RunUpdate" ) 
         java com.hamiltonlabs.dataflow.utility.$cmd $PASSKEY "$@"|./tablemaker.sh
         ;;
+    "Cryptor" )
+        # out of order args for cryptor 
+	java com.hamiltonlabs.dataflow.utility.$cmd $1 $PASSKEY $2
+        ;;
     *)
         java com.hamiltonlabs.dataflow.utility.$cmd $PASSKEY $@
         ;;
