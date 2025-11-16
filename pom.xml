@@ -19,7 +19,6 @@
     <module>service</module>
     <module>platform</module>
     <module>resources</module>
-    <module>app</module>
   </modules>
 
 
@@ -45,7 +44,6 @@
 
 
   <build>
-    <pluginManagement><!-- lock down plugins versions to avoid using Maven defaults (may be moved to parent pom) -->
       <plugins>
         <!-- clean lifecycle, see https://maven.apache.org/ref/current/maven-core/lifecycles.html#clean_Lifecycle -->
         <plugin>
@@ -87,6 +85,5 @@
           <version>3.0.0</version>
         </plugin>
       </plugins>
-    </pluginManagement>
   </build>
 </project>

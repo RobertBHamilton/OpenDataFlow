@@ -51,8 +51,8 @@ public class CryptorTest{
     @Test
     @Order(3)
     void testHelpCryptor()throws Exception {
-            Cryptor.help();
-	    assertNotEquals("",outContent.toString());
+            String s=Cryptor.help();
+	    assertNotEquals("",s);
     }	
     
     @Test
@@ -60,12 +60,13 @@ public class CryptorTest{
     void testMainCryptorE()throws Exception {
 
 	try{
+	    restoreStreams();
 
-            Cryptor.main(new String[]{"-e",TESTPASS,PLAINTEXT}); 
-	    encrypted=outContent.toString();
+            encrypted=Cryptor.run(TESTPASS,"-e",PLAINTEXT);
 	    assertNotEquals(PLAINTEXT,encrypted);
 
 	}catch(Exception e){
+            System.out.println("Caught exception in encrypt test");	
             e.printStackTrace();
 	    throw e;
         }
@@ -77,8 +78,8 @@ public class CryptorTest{
 
 	try{
 
-            Cryptor.main(new String[]{"-d",TESTPASS,encrypted}); 
-	    String decrypted=outContent.toString();
+	    restoreStreams();
+            String decrypted=Cryptor.run(TESTPASS,"-d",encrypted);
 	    assertEquals(PLAINTEXT,decrypted);
 
 	}catch(Exception e){

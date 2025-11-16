@@ -61,18 +61,13 @@ public class DataProvider implements AutoCloseable{
      * @return Json in string
      */
     public int runUpdate(String ... vars) throws SQLException{
-	try{
-            String sql=vars[0];
-	    PreparedStatement st=connection.prepareStatement(sql);	
-            for (int i=1;i<vars.length;i++){
-		st.setString(i,vars[i]);
-	    }
-	    int rs=st.executeUpdate();
-	    return rs;
-        } catch(SQLException e){
-	    e.printStackTrace();
-            throw new SQLException(e);
-        }
+        String sql=vars[0];
+        PreparedStatement st=connection.prepareStatement(sql);	
+        for (int i=1;i<vars.length;i++){
+	    st.setString(i,vars[i]);
+	}
+	int rs=st.executeUpdate();
+	return rs;
     }
 
     /** submit arbitrary SQL with bind variables 
@@ -81,18 +76,13 @@ public class DataProvider implements AutoCloseable{
      * @return Json in string
      */
     public ResultSet runSQL(String ... vars) throws SQLException{
-	try{
-            String sql=vars[0];
-	    PreparedStatement st=connection.prepareStatement(sql);	
-            for (int i=1;i<vars.length;i++){
-		st.setString(i,vars[i]);
-	    }
-	    ResultSet rs=st.executeQuery();
-	    return rs;
-        } catch(SQLException e){
-	    e.printStackTrace();
-            throw new SQLException(e);
-        }
+        String sql=vars[0];
+	PreparedStatement st=connection.prepareStatement(sql);	
+        for (int i=1;i<vars.length;i++){
+	    st.setString(i,vars[i]);
+	}
+	ResultSet rs=st.executeQuery();
+	return rs;
     }
 
 

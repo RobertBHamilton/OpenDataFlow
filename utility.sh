@@ -1,21 +1,31 @@
-export CLASSPATH=bin/postgresql-42.7.3.jar:bin/json-20250517.jar:app/target/app-1.0.0.jar
+export CLASSPATH=bin/postgresql-42.7.3.jar:bin/json-20250517.jar:utility/target/utility-1.0.0.jar
 if [ $# -lt 1 ];then
 cat<<DONE
 usage: $0 cmd args
 currently supported commands with required args are:
 
-	SetJobEndStatus jobid dataid status 
-	Cryptor  [-d|-e] text   
-        GetJobData jobid 
-        sql sql
-        update sql
-        SetDataStatus dataid datasetid jobid lockType status
-	jobs  
-	datasets 
-	runs 
+    utility.sh sql  <sql>        -- run a select sql statement
+    utility.sh dml  <sql>        -- run a dml statement 
+    utility.sh crypt -e key text  -- -e to encrypt or -d to decrypt
+    utility.sh runs               -- list the 20 most recent job runs
+    utility.sh getjob             -- get input/output configuration for a job
+    utility.sh jobs               -- list all jobs registered
+    utility.sh datasets           -- list all datasets registered
+
+    CLASSNAME args -- any executable class in utilities module. Example:
+     utility.sh  SetJobEndStatus jobid dataid status 
+     utility.sh  GetJobData jobid 
+     utility.sh  SetDataStatus RUNNING 3000 today newjob OUT
+     utility.sh dml "delete from datastatus where jobid='newjob'a
 
 if the PASSKEY environment variable is set then you can omit passkey from the arguments above.
-Otherwise the passkey is expected as the FIRST argument to utility.sh, followed by the command ant then the arguments
+    Example: 
+	export PASSKEY=plugh 
+	utility.sh sql "select * from datastatus"
+
+if PASSKEY is not set, the passkey is expected as the FIRST argument to utility.sh, followed by the command and then the args
+    Example: 
+	utility.sh plugh sql "select * from datastatus"
 DONE
     exit
 fi
@@ -33,30 +43,31 @@ shift
 #echo args "$@"
 export args="$@"
 export util="com.hamiltonlabs.dataflow.utility"
+export jarc="java -jar utility/target/utility-1.0.0.jar $PASSKEY  "
+export jar="$jarc $cmd "
 # Special case the runsql and other SQLs because we can and should make the result readable
+
 case  "$cmd" in 
     "sql" ) 
-        java $util.RunSql $PASSKEY "$@"|./tablemaker.sh
+	$jar "$@" |./tablemaker.sh
         ;;
     "dml" ) 
-        java $util.RunUpdate $PASSKEY "$@"|./tablemaker.sh
+	$jar "$@"  |./tablemaker.sh
         ;;
-    "Cryptor" )
-        # out of order args for cryptor 
-	java $util.$cmd $1 $PASSKEY $2
+    "crypt" )
+	$jar "$@"
         ;;
     "runs" ) 
-	java $util.RunSql $PASSKEY "select * from  datastatus where locktype='OUT' order by dataid desc limit 20"|./tablemaker.sh
+	$jar |./tablemaker.sh
         ;; 
-    "job" ) 
-	echo "select * from  datastatus where locktype='OUT' and jobid='$@' order by dataid desc limit 20"
-	java $util.RunSql $PASSKEY "select * from  datastatus where locktype='OUT' and jobid='$args' order by dataid desc limit 20"|./tablemaker.sh
+    "getjob" ) 
+	$jar  $@ |jq .
         ;; 
     "jobs" )
-	java $util.RunSql $PASSKEY "select * from  job"|./tablemaker.sh
+	$jar |./tablemaker.sh
         ;; 
     "datasets" )
-	java $util.RunSql $PASSKEY "select datasetid,hostname,database,schemaname,tablename,username,case when length(encryptedpass)>10 then concat(substring(encryptedpass,1,10),'...') else encryptedpass end  as encryptedpass from dataset"|./tablemaker.sh
+	$jar $@  |./tablemaker.sh
         ;; 
     *)
         java $util.$cmd $PASSKEY $@

@@ -2,14 +2,15 @@ package com.hamiltonlabs.dataflow.utility;
 
 import com.hamiltonlabs.dataflow.service.*;
 
+
 public class GetJobData{
 
+    public static String run(String passkey,String jobid)throws Exception{
+        return DataFlow.getJobData(passkey,jobid);
+    }
+
     public static void main(String[] args) throws Exception{
-	
-	String passkey=args[0];
-	String jobid=args[1];
-        String s=DataFlow.getJobData(passkey,jobid);
-        System.out.println(s);
+        System.out.println(run(args[0],args[1]));
     }
     
 }

@@ -4,14 +4,12 @@ import com.hamiltonlabs.dataflow.service.*;
 
 public class SetJobEndStatus{
 
+    public static String run(String passkey,String jobid,String dataid,String status) throws Exception{
+        return DataFlow.setJobEndStatus(passkey,jobid,dataid,status);
+    }
+
     public static void main(String[] args) throws Exception{
-	
-	String passkey=args[0];
-	String jobid=args[1];
-	String dataid=args[2];
-	String status=args[3];
-        String s=DataFlow.setJobEndStatus(passkey,jobid,dataid,status);
-        System.out.println(s);
+	System.out.println(run(args[0],args[1],args[2],args[3]))	;
     }
     
 }

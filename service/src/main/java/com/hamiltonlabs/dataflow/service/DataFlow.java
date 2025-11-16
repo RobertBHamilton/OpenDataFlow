@@ -8,7 +8,7 @@ import org.json.JSONObject;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
-
+import java.security.GeneralSecurityException;
 
 /** DataFlow exoses all the serviced needed to support the full job lifecycle.
   * getJobData provides all the runtime configuration needed for the data sets used by the job
@@ -224,12 +224,45 @@ public class DataFlow {
      * 
      *  @returns a json string representing the runtime configuration 
      *  This would would be called from a utility
+     * We are stepping on double quotes because downstream we a manipulating the results in shell script
+     *  using jq, and trying to properly escape them is impossible
+     *  TODO: put a java tablebuilder in utility module and then remove this corruption
      */
     
     public static String getJobData(String passkey,String jobid) throws Exception{
-         DataProvider dataprovider=new DataProvider().open(passkey,"dataflow.properties");
-	 return getJobData(jobid,dataprovider);
+	try {
+            DataProvider dataprovider=new DataProvider().open(passkey,"dataflow.properties");
+	    return getJobData(jobid,dataprovider);
+	} catch (SQLException |GeneralSecurityException|java.io.IOException e){
+          return String.format("[{\"result\":\"%s\"}]",e.getMessage().replaceAll("\"","'"));
+	}
     }
+/** Run an arbitrary DML SQL, returning rows affected */
+    public static int runUpdate(String passkey,String ... vars)throws Exception{	
+        DataProvider p=new DataProvider().open(passkey,"dataflow.properties");
+        return p.runUpdate(vars);
+    }
+/** Run an arbitrary DML SQL */
+     public static String runUpdate(String passkey,String sqltext){	
+	try{
+          DataProvider p=new DataProvider().open(passkey,"dataflow.properties");
+          return String.format("[{\"result\":\"%d rows affected\"}]",p.runUpdate(sqltext));
+	} catch (SQLException |GeneralSecurityException|java.io.IOException e){
+          return String.format("[{\"result\":\"%s\"}]",e.getMessage().replaceAll("\"","'"));
+	}
+
+    }
+
+/** Run an arbitrary SQL */
+    public static String runSql(String passkey,String sqltext){	
+        try{     
+              DataProvider p=new DataProvider().open(passkey,"dataflow.properties");
+  	      return DataFlow.rs2String(p.runSQL(sqltext));
+	} catch (SQLException |GeneralSecurityException|java.io.IOException e){
+              return String.format("[{\"result\":\"%s\"}]",e.getMessage().replaceAll("\"","'").replaceAll("\n",""));
+	}
+     }
+
     /** get next available data chunk for the jobs
      *  this one would be called from this class where an open dataprover exists
      */

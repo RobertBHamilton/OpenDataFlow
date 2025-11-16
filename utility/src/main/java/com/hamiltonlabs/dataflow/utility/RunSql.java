@@ -8,12 +8,11 @@ import java.sql.SQLException;
 
 public class RunSql{
 
+    public static String run(String passkey,String sqltext){	
+	return DataFlow.runSql(passkey,sqltext);
+    }
     public static void main(String[] args) throws Exception{
-	
-	String passkey=args[0];
-	String sqltext=args[1];
-        DataProvider p=new DataProvider().open(passkey,"dataflow.properties");
-	System.out.println(DataFlow.rs2String(p.runSQL(sqltext)));
+	System.out.println(run(args[0],args[1]));
     }
     
 }

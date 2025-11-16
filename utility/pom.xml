@@ -18,13 +18,75 @@
       <groupId>com.hamiltonlabs</groupId>
       <artifactId>core</artifactId>
       <version>1.0.0</version>
-  </dependency>
+    </dependency>
     <dependency>
       <groupId>com.hamiltonlabs</groupId>
       <artifactId>service</artifactId>
       <version>1.0.0</version>
-  </dependency>
-</dependencies>
+    </dependency>
+    <dependency>
+      <groupId>com.hamiltonlabs</groupId>
+      <artifactId>database</artifactId>
+      <version>1.0.0</version>
+    </dependency>
+    <dependency>
+      <groupId>com.hamiltonlabs</groupId>
+      <artifactId>resources</artifactId>
+      <version>1.0.0</version>
+    </dependency>
+    <dependency>
+      <groupId>org.json</groupId>
+      <artifactId>json</artifactId>
+      <version>20250517</version>
+    </dependency>
+    <dependency>
+      <groupId>org.postgresql</groupId>
+      <artifactId>postgresql</artifactId>
+      <version>42.7.3</version>
+    </dependency>
 
+  </dependencies>
+
+
+
+  <build>
+    <plugins>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-shade-plugin</artifactId>
+          <version>3.6.1</version>
+          <executions>
+            <execution>
+              <phase>package</phase>
+              <goals>
+                <goal>shade</goal>
+              </goals>
+              <configuration>
+              <!-- Define the main entry point of your application -->
+               <transformers>
+                    <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                    <mainClass>com.hamiltonlabs.dataflow.utility.util</mainClass>
+                    </transformer>
+               </transformers>
+<!--
+                <artifactSet>
+                  <includes>
+                     <include>com.hamiltonlabs:core</include>
+                     <include>com.hamiltonlabs:utility</include>
+                     <include>com.hamiltonlabs:database</include>
+                     <include>com.hamiltonlabs:service</include>
+                     <include>com.hamiltonlabs:platform</include>
+                     <include>org.postgresql:postgresql</include>
+                     <include>org.json:json</include>
+                  </includes>
+                </artifactSet>
+-->
+               <finalName>${project.artifactId.version}</finalName>
+              </configuration>
+            </execution>
+          </executions>
+        </plugin>
+    </plugins>
+  </build>
 </project>
 

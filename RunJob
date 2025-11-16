@@ -10,14 +10,13 @@ if [ -z "$PASSKEY" ];then
   shift
 else 
   export passkey=$PASSKEY
-  echo using key $PASSKEY from environment
 fi
 
 export jobid=$1
 export cmd=$2
 export args=$@
 # 
-export CLASSPATH=bin/postgresql-42.7.3.jar:bin/json-20250517.jar:app/target/app-1.0.0.jar
+export CLASSPATH=bin/postgresql-42.7.3.jar:bin/json-20250517.jar:utility/target/utility-1.0.0.jar
 
 getEnvJSON(){
   #java com.hamiltonlabs.dataflow.utility.GetJobData $jobid $passkey 
@@ -25,7 +24,7 @@ getEnvJSON(){
 }
 
 decrypt() {
-java -cp app/target/app-1.0.0.jar com.hamiltonlabs.dataflow.utility.Cryptor -d $passkey "$1"
+java com.hamiltonlabs.dataflow.utility.Cryptor -d $passkey "$1"
 }
 
 # Because we pipe to the parse, it creates a separate process and so any changes we make
