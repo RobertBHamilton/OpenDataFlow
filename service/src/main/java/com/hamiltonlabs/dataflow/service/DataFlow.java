@@ -150,7 +150,6 @@ public class DataFlow {
         obj.put("dataid",dataid);
         result.put(obj);
 
-System.out.printf("jobid %s,dataid %s\n",jobid,dataid);
 
         /* If we get  here we have found a dataset, have a dataid value for it, and a lock on the row */
         /* now get the data to return and set the locks */
@@ -161,7 +160,6 @@ System.out.printf("jobid %s,dataid %s\n",jobid,dataid);
             obj = new JSONObject();
             String datasetid=rs.getString("datasetid");
             String locktype=rs.getString("itemtype");
-System.out.printf("status %s,%s,%s\n",datasetid,jobid,dataid);
             setStatus(datasetid,jobid,dataid,dataprovider,locktype,"RUNNING");
             String prefix=datasetid;
             /* flatten the variable namespace for the scripts to use */

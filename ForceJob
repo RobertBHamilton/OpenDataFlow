@@ -1,0 +1,104 @@
+#!/bin/bash 
+#
+# Look for an environment registered in DataFlow, if a suitable data chunk is available then
+# Set the environment and execute the command in a new process
+# If not then drop a message and exit 
+
+# support alternate way to pass the key 
+if [ -z "$PASSKEY" ];then
+  export passkey=$1
+  shift
+else 
+  export passkey=$PASSKEY
+fi
+
+if [ $# -lt 1 ]; then # print a help message and quit"
+cat<<DONE
+   "ForceJob passkey myjobid mycommand"
+   "Passkey=blah ForceJob myjobid mycommand"
+   
+   ForceJob grabs a dataid and runs the job without checking the dependencies.
+   It also actually runs the command and sets the status in the datastatus table, which means that you will want to do cleanup after the run
+ 
+   This breaks the contract and defeats the purpose of the framework. 
+   However, something like ForceJob myjobid "set"  is a quick and easy way to validate that environment vars are being set.
+
+   Then when you want to run the job for real, you are confident to do RunJob either 
+   1) set the PASSKEY in then environment first, eg export PASSKEY=plugh, and do RunJob myjob.sh
+   2) or pass the key in the command line and do RunJob plugh myjob.sh
+
+   To do cleanups after a ForceRun, get the run information with
+   ./utility.sh runs
+   And the delete the runs with
+   ./utility.sh deleterun myjobid <dataid> 
+DONE
+   exit
+fi
+
+# we supply both jobid and command. This is so that we can cheat and use some command which tests the communication and configuration
+export jobid=$1
+export cmd=$2
+shift 2
+export args=$@
+echo "Jobid is $jobid, command is $cmd "
+# 
+export CLASSPATH=bin/postgresql-42.7.3.jar:bin/json-20250517.jar:utility/target/utility-1.0.0.jar
+
+getEnvJSON(){
+  java com.hamiltonlabs.dataflow.utility.ForceJob $passkey "$jobid"
+}
+
+decrypt() {
+java com.hamiltonlabs.dataflow.utility.Cryptor -d $passkey "$1"
+}
+
+# Because we pipe to the parse, it creates a separate process and so any changes we make
+# to the environment will vanish when the process exits. Instead we just pipe it to source 
+# using Bash process substitution
+declareEnv(){
+
+  #stale dataid will result in false executions so make sure we only set it here
+  unset dataid   
+  getEnvJSON |jq -c '.[] | to_entries[]' | while read -r entry; do
+ 
+
+  key=$(echo "$entry" | jq -r '.key')
+  value=$(echo "$entry" | jq -r '.value')
+
+# FIXME there is some bug when value contains a path symbol */
+  if [[ $key =~ ^today.* ]];then
+     export a=$a;	#do nothing dont pollute the env with the automatic dataset */
+  else    
+    # Emit export statement
+    echo "declare -x $key=\"${value}\";"
+
+
+    # Handle encrypted passwords
+    if [[ $key =~ ^(.*)_encryptedpass$ ]]; then
+      prefix="${BASH_REMATCH[1]}"
+      decrypted=$(decrypt "$value")
+      echo "declare -x ${prefix}_password=\"${decrypted}\";"
+    fi
+  fi
+done
+}
+
+env="`declareEnv`"
+source <(echo "$env")
+if [ -z "$dataid" ];then
+  echo "`date`: no suitable data available for job. Not running it"
+else
+
+echo "`date`: Launching $jobid, $cmd with dataid $dataid"
+# lock our files
+#java com.hamiltonlabs.dataflow.utility.SetJobStart $passkey $jobid $dataid
+
+eval "$cmd $args"
+ if [ $? -eq 0 ];then
+     echo "`date`: Job $cmd is complete. Updating status"
+     java -cp $CLASSPATH:app.jar com.hamiltonlabs.dataflow.utility.SetJobEndStatus $passkey $jobid $dataid READY
+else
+     echo "`date`: Job $cmd has failed. Updating status"
+     java -cp $CLASSPATH:app.jar com.hamiltonlabs.dataflow.utility.SetJobEndStatus $passkey $jobid $dataid FAILED
+fi
+fi

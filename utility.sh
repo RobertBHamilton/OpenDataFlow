@@ -4,19 +4,22 @@ cat<<DONE
 usage: $0 cmd args
 currently supported commands with required args are:
 
-    utility.sh sql  <sql>        -- run a select sql statement
-    utility.sh dml  <sql>        -- run a dml statement 
+    utility.sh sql  <sql>         -- run a select sql statement
+    utility.sh dml  <sql>         -- run a dml statement 
     utility.sh crypt -e key text  -- -e to encrypt or -d to decrypt
     utility.sh runs               -- list the 20 most recent job runs
     utility.sh getjob             -- get input/output configuration for a job
     utility.sh jobs               -- list all jobs registered
     utility.sh datasets           -- list all datasets registered
+    utility.sh forcejob           -- get a timestamp dataid even if no dependencies are met.  But see  **
 
     CLASSNAME args -- any executable class in utilities module. Example:
      utility.sh  SetJobEndStatus jobid dataid status 
      utility.sh  GetJobData jobid 
      utility.sh  SetDataStatus RUNNING 3000 today newjob OUT
      utility.sh dml "delete from datastatus where jobid='newjob'a
+     
+** forcejob breaks every contract. Just use it to verify your configuration during dev. ** 
 
 if the PASSKEY environment variable is set then you can omit passkey from the arguments above.
     Example: 
@@ -63,6 +66,11 @@ case  "$cmd" in
     "getjob" ) 
 	$jar  $@ |jq .
         ;; 
+
+    "forcejob" ) 
+	$jar  $@ 
+        ;; 
+
     "jobs" )
 	$jar |./tablemaker.sh
         ;; 
