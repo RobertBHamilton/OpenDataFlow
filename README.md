@@ -1,5 +1,5 @@
 # OpenDataFlow
-NOTE This application is in BETA. It still needs a some work to get to first release. Contributers are welcom
+NOTE This application is in BETA. It still needs some work to get to first release. Contributers are welcome
 
 ## Overview
 OpenDataFlow is a lightweight orchestration utility that runs and coordinates batch jobs over partitioned or time-sliced data so teams can schedule, recover, and migrate large data-processing pipelines without changing their ETL code.
@@ -20,7 +20,7 @@ Years ago, while diagnosing root causes of ETL failures, the same five questions
 
 Each investigation took **20–30 minutes**.  
 After a platform outage affecting 100+ jobs?  
-**Hours lost. Risky shortcuts taken. Heroes burned out.**
+**Hours lost. Risky shortcuts taken. Burn out.**
 
 So we asked two natural questions:
 
@@ -28,7 +28,7 @@ So we asked two natural questions:
 2. **If it’s critical for root cause, isn’t it *even more* critical *before* the job runs?**
 
 The answer to both was obvious.  
-That insight birthed the **DataFlow utilities**—and eventually, **OpenDataFlow**.
+That insight birthed the **DataFlow utilities** and eventually, **OpenDataFlow**.
 
 ---
 
