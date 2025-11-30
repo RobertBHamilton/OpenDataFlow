@@ -31,6 +31,33 @@ public class DataProviderTest{
 
     /* run some sql and get expected result */
     @Test
+    void runUpdate() throws SQLException {
+
+	int rs=p.runUpdate("create table bob(x int)");
+	assertEquals(rs,0);
+
+	/* tests both table was created and inster is working */
+	rs=p.runUpdate("insert into bob values(1)");
+	assertEquals(rs,1);
+
+        /* cleanup */
+	rs=p.runUpdate("drop table bob");
+	
+    }
+    /* print out the value of lockStatusSQL should be empty string if h2 */
+    @Test
+    void getResources(){
+	String lock=p.getSQL("lockStatusSQL");
+	String platform=p.getPlatform();
+	if (platform.equals("h2")){
+	    assertEquals("",lock);
+	} 
+	if (platform.equals("postgres")){
+	    assertEquals("lock datastatus in access exclusive mod",p);
+	}
+    } 
+    /* run some sql and get expected result */
+    @Test
     void runSQL() throws SQLException {
 	ResultSet rs=p.runSQL("select 1 as one where ?='1'","1");
 	rs.next();

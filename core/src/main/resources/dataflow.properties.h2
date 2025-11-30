@@ -1,3 +1,4 @@
 url=jdbc:h2:mem:dataflow;INIT=CREATE SCHEMA IF NOT EXISTS DATAFLOW\\;set schema DATAFLOW
 user=etl
 encrypted=ZpLfE+uTYE2mdmjOPrukol3yu+cpAHBnmL6trHa9PHGj
+platform=h2

@@ -19,144 +19,18 @@ import java.time.LocalDateTime;
 
 public class DataFlow {
   
-        /* the lock is the OUT READY datastatus row wwhich is an IN for the job. Any other invocation of the same job will want it, so skip locked skips it */
-        /* must be called inside a transaction */
-	/* AUTOMATIC dataset "today" is out type that is always ready and has dataid of today */
-	 static String dataidLockedSQL= """
-               /* dataid of at least one row is input for the job and is ready */
-                 select                                            
-                     dataid,j.jobid  
-		 from job j join datastatus d   
-		 on j.datasetid=d.datasetid and d.locktype='OUT' and d.status='READY'  
-                 where j.itemtype='IN' and j.jobid=?  
-               /* and non of the input rows are already have IN status for this job */
-		 and not exists (                                   
-		    select d1.dataid 
-		    from job j1 join datastatus d1  
-		    on j1.jobid=j.jobid   
-		    and j1.itemtype='IN' and d1.locktype='IN' 
-                    and j1.datasetid=d1.datasetid and d1.dataid=d.dataid)  
-              /* and this job is not running  or complete already  */
-		and not exists (                                     
-	  	    select d2.dataid from job j2 join datastatus d2  
-                    on j2.jobid=d2.jobid and j2.itemtype='OUT'  
-                    and d2.datasetid=j2.datasetid and d2.dataid=d.dataid 
-                    where j2.jobid=j.jobid and d2.status != 'RESUBMIT')   
-	      /* all inputs to job exist, are out and have a ready status */
-		and not exists (
-		   select 
-			j.datasetid 
-		  from 
-		      job j3 
-                  left outer join 
-                      datastatus d3
-		   on 
-		      j3.datasetid=d3.datasetid
-		      and d3.locktype='OUT'     
-		      and d3.dataid=d.dataid
-                      and d3.status='READY'
-		   where 
-		       j3.jobid=j.jobid 
-                   and j3.itemtype='IN'     
-		   and d3.dataid is null )    /* any non match is a missing input */ 
-               order by d.dataid limit 1 for update of d skip locked
-            """ ;
-static String dropJobSQL="drop table if exists dataflow.job";
-static String dropDatasetSQL="drop table if exists dataflow.dataset";
-static String dropDatastatusSQL="drop table if exists dataflow.datastatus";
-static String createJobSQL=""" 
-create table if not exists job(
-    jobid varchar,
-    itemtype varchar,    /* for data, IN or OUT, or name of env variable  */
-    datasetid varchar,   /* null for environment item   */
-    itemvalue varchar,    /* null if IN or OUT item      */
-    modified  timestamp
-) """;
-
-/*  Contain sufficient information for ETL script to establish a connection,
- *  provided that he can decrypt the password:
- *  database,schema,table,user,encrypted password 
- *  Yes these are db centric in a generic table but they can be mapped to 
- *  other types of data sets like files, web urls, hdfs tables etc.
- */
-
-
-static String createDatasetSQL="""
- create table if not exists dataflow.dataset(
-    datasetid varchar,
-    hostname varchar,
-    database varchar,
-    schemaname varchar,
-    tablename varchar,
-    username varchar,
-    encryptedpass varchar
-) 
-""";
-static String createIndexDatasetSQL="create index if not exists x_dataset on dataflow.dataset(datasetid)";
-
-
-static String createDatastatusSQL=""" 
-create table if not exists dataflow.datastatus(
-    datasetid varchar,
-    jobid varchar,
-    dataid varchar,
-    locktype varchar,
-    status varchar,
-    modified timestamp,
-primary key (datasetid,jobid,dataid)
-)
-""";
-
-
-/* Automatic dataset 'today' always supplies current date as dataid and is always READY */
-/* The rest of the logic confirming ready must be identical    */
-static String dataidTodaySQL= """
-                 select to_char(current_date,'YYYY-MM-DD') as dataid,j.jobid from job j where j.itemtype='IN' and j.datasetid='today' and j.jobid=? /* and non of the input rows are already have IN status for this job */ and not exists ( select d1.dataid from job j1 join datastatus d1 on j1.jobid=j.jobid and j1.itemtype='IN' and d1.locktype='IN' and j1.datasetid=d1.datasetid and d1.dataid=to_char(current_date,'YYYY-MM-DD')) 
-                /* and this job is not running  or complete already  */ 
-                and not exists ( 
-               select 
-                     d2.dataid from job j2 join datastatus d2 
-                on 
-                    j2.jobid=d2.jobid and j2.itemtype='OUT' 
-                    and d2.datasetid=j2.datasetid and d2.dataid=to_char(current_date,'YYYY-MM-DD') 
-                    where j2.jobid=j.jobid 
-                    and d2.status != 'RESUBMIT') 
-		 /* all inputs to job exist, are out and have a ready status */ 
-                  and not exists ( select j.datasetid from
-                      job j3
-                  left outer join
-                      datastatus d3
-                   on
-                      j3.datasetid=d3.datasetid
-                      and d3.locktype='OUT'
-                      and d3.dataid=to_char(current_date,'YYYY-MM-DD')
-                      and d3.status='READY'
-                   where
-                       j3.jobid=?
-                   and j3.itemtype='IN'
-                   and j3.datasetid != 'today'
-                   and d3.dataid is null )    /* any non match is a missing input */
-            """;
- 
-
-        /* readonly version of the same but cannot skip locked*/
-	 static String dataidSQL="select x.dataid,x.jobid from  (select j.datasetid,j.jobid,d.dataid  from job j left join datastatus d on j.datasetid=d.datasetid and d.locktype='OUT' and d.status='READY' where j.itemtype='IN' and j.jobid=?)x where not exists (select d.dataid from job j join datastatus d on j.jobid=x.jobid  and j.itemtype='IN' and d.locktype='IN' and j.datasetid=d.datasetid and d.dataid=x.dataid) and not exists (select d.dataid from job j join datastatus d on j.jobid=x.jobid and j.itemtype='OUT' and d.datasetid=j.datasetid and d.dataid=x.dataid where d.status != 'RESUBMIT')  order by x.dataid limit 1";
-
-
-        static String datasetSQL="select d.*,itemtype from dataset d join job on job.datasetid=d.datasetid where job.jobid=?";
-	static String updateSQL="update datastatus set status=?,locktype=? where dataid=? and datasetid=? and jobid=?";
-        static String insertSQL="insert into datastatus values (?,?,?,?,?,now())";
-	static String updateOutStatusSQL="update datastatus set status=? where jobid=? and dataid=? and locktype='OUT'	";
-	static String updateFileLocalStatusSQL="delete from datastatus where jobid=? and dataid=? and locktype='IN'	";
+   public DataFlow(){
+   }
 
   /** create tables for the dataflow schema  */
   public static String createTables(String passkey)throws Exception{
          DataProvider dataprovider=new DataProvider().open(passkey,"dataflow.properties");
 	  
-	int updatecount=dataprovider.runUpdate(createJobSQL);
-	updatecount+=dataprovider.runUpdate(createDatasetSQL);
-	updatecount+=dataprovider.runUpdate(createDatastatusSQL);
-	updatecount+=dataprovider.runUpdate(createIndexDatasetSQL);
+	int updatecount=0;
+	updatecount+=dataprovider.runUpdate(dataprovider.getSQL("createJobSQL"));
+	updatecount+=dataprovider.runUpdate(dataprovider.getSQL("createDatasetSQL"));
+	updatecount+=dataprovider.runUpdate(dataprovider.getSQL("createDatastatusSQL"));
+	updatecount+=dataprovider.runUpdate(dataprovider.getSQL("createIndexDatasetSQL"));
 	return String.format("%d rows updated",updatecount);
   }
     /**  Set the status for a given dataset,job, and chunk 
@@ -171,9 +45,9 @@ static String dataidTodaySQL= """
     public static void setStatus(String datasetid,String jobid,String dataid,DataProvider dataprovider,String locktype,String status) throws Exception {
 	/* insert should have the following fields:  datasetid |  jobid   | dataid | locktype | status            */
 	
-	int updatecount=dataprovider.runUpdate(updateSQL,status,locktype,dataid,datasetid,jobid);
+	int updatecount=dataprovider.runUpdate(dataprovider.getSQL("updateSQL"),status,locktype,dataid,datasetid,jobid);
 	if (updatecount==0){
-	    updatecount=dataprovider.runUpdate(insertSQL,datasetid,jobid,dataid,locktype,status);
+	    updatecount=dataprovider.runUpdate(dataprovider.getSQL("insertSQL"),datasetid,jobid,dataid,locktype,status);
         }
 	if (updatecount==0){ 
 	    throw new SQLException(String.format("Upsert for job %s and dataset %s could not be performed",jobid,datasetid));
@@ -185,8 +59,8 @@ static String dataidTodaySQL= """
          DataProvider dataprovider=new DataProvider().open(passkey,"dataflow.properties");
 	/* set the OUT status */
 
-	int updatecount=dataprovider.runUpdate(updateOutStatusSQL,status,jobid,dataid);
-        int deletecount=dataprovider.runUpdate(updateFileLocalStatusSQL,jobid,dataid);
+	int updatecount=dataprovider.runUpdate(dataprovider.getSQL("updateOutStatusSQL"),status,jobid,dataid);
+        int deletecount=dataprovider.runUpdate(dataprovider.getSQL("updateFileLocalStatusSQL"),jobid,dataid);
 
 	 returnString=String.format("%d rows updated to %s for %s and %s",updatecount,status,jobid,dataid);
          returnString=returnString+String.format(" %d IN file-local locks released",deletecount);
@@ -218,7 +92,7 @@ static String dataidTodaySQL= """
 
         /* If we get  here we have found a dataset, have a dataid value for it, and a lock on the row */
         /* now get the data to return and set the locks */
-        rs=dataprovider.runSQL(datasetSQL,jobid);
+        rs=dataprovider.runSQL(dataprovider.getSQL("datasetSQL"),jobid);
         ResultSetMetaData rsmd = rs.getMetaData();
         while(rs.next()) {
             int numColumns = rsmd.getColumnCount();
@@ -243,19 +117,21 @@ static String dataidTodaySQL= """
 
         DataProvider dataprovider=new DataProvider().open(passkey,"dataflow.properties");
 
-	int bt=dataprovider.runUpdate("begin transaction");
-	int k=dataprovider.runUpdate("lock datastatus in access exclusive mode ");
-
+	int bt=dataprovider.runUpdate(dataprovider.getSQL("beginTransactionSQL"));
+	String lockStatusSQL=dataprovider.getSQL("lockStatusSQL");
+	if (!lockStatusSQL.equals("")){
+	   int k=dataprovider.runUpdate("lock datastatus in access exclusive mode ");
+	}
 	String dataid;
 	JSONArray result=new JSONArray();
         JSONObject obj = new JSONObject();
 
-	ResultSet rs=dataprovider.runSQL(dataidTodaySQL,jobid,jobid);
+	ResultSet rs=dataprovider.runSQL(dataprovider.getSQL("dataidTodaySQL"),jobid,jobid);
 	/* if no automatic result then do the check for normal data set input */
 	if (rs.next()){  
 	    dataid=rs.getString("dataid");
 	}else {
-            rs=dataprovider.runSQL(dataidLockedSQL,jobid);
+            rs=dataprovider.runSQL(dataprovider.getSQL("dataidLockedSQL"),jobid);
 	    if (rs.next()){
 	    dataid=rs.getString("dataid");
 	   } else {
@@ -267,7 +143,7 @@ static String dataidTodaySQL= """
 	result.put(obj);
 	/* If we get  here we have found a dataset, have a dataid value for it, and a lock on the row */
         /* now get the data to return and set the locks */ 
-	rs=dataprovider.runSQL(datasetSQL,jobid);
+	rs=dataprovider.runSQL(dataprovider.getSQL("datasetSQL"),jobid);
         ResultSetMetaData rsmd = rs.getMetaData();
         while(rs.next()) {
             int numColumns = rsmd.getColumnCount();
@@ -285,7 +161,7 @@ static String dataidTodaySQL= """
             result.put(obj);
         }
 
-	int et=dataprovider.runUpdate("end transaction");
+	int et=dataprovider.runUpdate(dataprovider.getSQL("endTransactionSQL"));
         return result.toString();
      }
  
@@ -303,7 +179,7 @@ static String dataidTodaySQL= """
 
     public static void setStartStatus(String passkey,String jobid,String dataid)throws Exception{
         DataProvider dataprovider=new DataProvider().open(passkey,"dataflow.properties");
-	ResultSet rs=dataprovider.runSQL(datasetSQL,jobid);
+	ResultSet rs=dataprovider.runSQL(dataprovider.getSQL("datasetSQL"),jobid);
         ResultSetMetaData rsmd = rs.getMetaData();
         while(rs.next()) {
             int numColumns = rsmd.getColumnCount();
@@ -337,28 +213,57 @@ static String dataidTodaySQL= """
           return String.format("[{\"result\":\"%s\"}]",e.getMessage().replaceAll("\"","'"));
 	}
     }
-/** Run an arbitrary DML SQL, returning rows affected */
+
+/** Run an arbitrary DDL SQL, returning rows affected */
     public static int runUpdate(String passkey,String ... vars)throws Exception{	
         DataProvider p=new DataProvider().open(passkey,"dataflow.properties");
         return p.runUpdate(vars);
     }
-/** Run an arbitrary DML SQL */
+
+/** Run an arbitrary DDL SQL. Opens a new DataProvider. This is typically used by utitilies which do one-off commands */
      public static String runUpdate(String passkey,String sqltext){	
 	try{
-          DataProvider p=new DataProvider().open(passkey,"dataflow.properties");
-          return String.format("[{\"result\":\"%d rows affected\"}]",p.runUpdate(sqltext));
+            DataProvider p=new DataProvider().open(passkey,"dataflow.properties");
+	    return runUpdate(p,sqltext);
 	} catch (SQLException |GeneralSecurityException|java.io.IOException e){
-          return String.format("[{\"result\":\"%s\"}]",e.getMessage().replaceAll("\"","'"));
-	}
+            return String.format("[{\"result\":\"%s\"}]",e.getMessage().replaceAll("\"","'"));
+        }
 
     }
 
-/** Run an arbitrary SQL */
+/** Run an arbitrary DML SQL on the DataProvider. Typically used by tests and functions which require multiple steps */
+     public static String runUpdate(DataProvider p,String sqltext){	
+	try{
+          return String.format("[{\"result\":\"%d rows affected\"}]",p.runUpdate(sqltext));
+	} catch (SQLException e){
+          return String.format("[{\"result\":\"%s\"}]",e.getMessage().replaceAll("\"","'"));
+	}
+    }
+
+/** Run an arbitrary SQL. Accepts an open DataProvider */
     public static String runSql(String passkey,String sqltext){	
         try{     
               DataProvider p=new DataProvider().open(passkey,"dataflow.properties");
-  	      return DataFlow.rs2String(p.runSQL(sqltext));
+              return runSql(p,sqltext);
 	} catch (SQLException |GeneralSecurityException|java.io.IOException e){
+              return String.format("[{\"result\":\"%s\"}]",e.getMessage().replaceAll("\"","'").replaceAll("\n",""));
+	}
+     }
+
+     public static String runUpdate(DataProvider p,String ... args){	
+	try{
+          return String.format("[{\"result\":\"%d rows affected\"}]",p.runUpdate(args));
+	} catch (SQLException e){
+          return String.format("[{\"result\":\"%s\"}]",e.getMessage().replaceAll("\"","'"));
+	}
+    }
+
+/** Run an arbitrary SQL. Opens a data DataProvider */
+
+    public static String runSql(DataProvider p,String sqltext){	
+        try{     
+  	      return DataFlow.rs2String(p.runSQL(sqltext));
+	} catch (SQLException  e){
               return String.format("[{\"result\":\"%s\"}]",e.getMessage().replaceAll("\"","'").replaceAll("\n",""));
 	}
      }
@@ -374,7 +279,8 @@ static String dataidTodaySQL= """
           * TODO: Migrate sql to a resource 
           */
 
-
+	String dataidSQL=dataprovider.getSQL("dataidSQL");
+	String datasetSQL=dataprovider.getSQL("datasetSQL");
 	ResultSet rs=dataprovider.runSQL(dataidSQL,jobid);
 	String dataid;
 	JSONArray result=new JSONArray();

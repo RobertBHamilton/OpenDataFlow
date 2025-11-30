@@ -7,7 +7,6 @@
 # Added to make cronjobs easier to set CLASSPATH
 thisdir=`dirname ${BASH_SOURCE[0]}`
 cd $thisdir
-echo "running from working directory `pwd`"
 
 # support alternate way to pass the key 
 if [ -z "$PASSKEY" ];then
@@ -25,6 +24,7 @@ shift 1
 export args="$@"
 # 
 export CLASSPATH=bin/postgresql-42.7.3.jar:bin/json-20250517.jar:utility/target/utility-1.0.0.jar
+export CLASSPATH=bin/json-20250517.jar:bin/h2-2.2.224.jar:utility/target/utility-1.0.0.jar
 
 getEnvJSON(){
   #java com.hamiltonlabs.dataflow.utility.GetJobData $jobid $passkey 
@@ -41,7 +41,7 @@ java com.hamiltonlabs.dataflow.utility.Cryptor -d $passkey "$1"
 declareEnv(){
   #stale dataid will result in false executions so make sure we only set it here
   unset dataid   
-  getEnvJSON|jq -c '.[] | to_entries[]' | while read -r entry; do
+  getEnvJSON|tail -1|jq -c '.[] | to_entries[]' | while read -r entry; do
  
 
   key=$(echo "$entry" | jq -r '.key')
@@ -65,6 +65,7 @@ declareEnv(){
 done
 }
 
+# test
 env="`declareEnv`"
 # uncomment if you need to debug echo "$env"
 source <(echo "$env")
@@ -75,7 +76,7 @@ else
 echo "`date`: Launching $cmd with dataid $dataid"
 # lock our files
 #java com.hamiltonlabs.dataflow.utility.SetJobStart $passkey $jobid $dataid
-echo runs "`./utility.sh runs`"
+echo Running  "$cmd $args"
 eval "$cmd $args"
  if [ $? -eq 0 ];then
      echo "`date`: Job $cmd is complete. Updating status"

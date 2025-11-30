@@ -12,7 +12,7 @@ import java.util.ArrayList;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
-
+import com.hamiltonlabs.dataflow.platform.SqlResourceLoader;
 
 
 /** provide multi platform functionality for jdbc connections
@@ -30,8 +30,12 @@ public class DataProvider implements AutoCloseable{
     /* used to open a connection to the database */
     private static final Properties properties = new Properties();
 
+    /* the platform as determined from dataflow.properties */
+	String platform;
     /* the jdbc connection used by this instance.  */
     private Connection connection;
+
+    public SqlResourceLoader sqlResource; 
 
     /** get the connection used by this data provider.
      *  @return the connection object
@@ -39,7 +43,12 @@ public class DataProvider implements AutoCloseable{
     public Connection getConnection(){
         return connection;
     } 
-
+    public String getSQL(String key){
+	return sqlResource.getSql(key);
+    }
+    public String getPlatform(){ 
+	return platform;
+    }
 
     /** open the connection and set default search path.
      * @param passphrase String used as key to decrypt the dataflow password
@@ -54,6 +63,9 @@ public class DataProvider implements AutoCloseable{
 	if (schema!=null){
 	    connection.setSchema(creds.getProperty("schema"));
 	}
+	platform=creds.getProperty("platform");
+	System.out.println("Using platform "+platform);
+        sqlResource=new SqlResourceLoader(platform);
 	return this;
     }	
 
@@ -65,6 +77,9 @@ public class DataProvider implements AutoCloseable{
      */
     public int runUpdate(String ... vars) throws SQLException{
         String sql=vars[0];
+	if (sql.equals("")){
+	    return 0;
+	}
         PreparedStatement st=connection.prepareStatement(sql);	
         for (int i=1;i<vars.length;i++){
 	    st.setString(i,vars[i]);
