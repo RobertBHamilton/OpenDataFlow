@@ -42,6 +42,10 @@ CAUTION below changes dataflow status:
 	        result=RunUpdate.run(args[0],args[2]);
                 break;
 
+	    case "createtables":
+		result=CreateTables.run(args[0]);
+	        break;		
+
 	    case "getjob":
 		result=GetJobData.run(args[0],args[2]);
 		break;

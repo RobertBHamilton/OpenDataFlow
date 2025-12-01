@@ -26,14 +26,13 @@ public class DataFlowTest{
 	assertEquals(p.getConnection().isClosed(),false);
 
         String tables=DataFlow.createTables("plugh");
-	assertEquals(tables,"0 rows updated");
-
+        assertEquals("[{\"result\":\"tables/indexes created\"}]",tables);
 	
 	int rows;
         String r;
 	int inserts;
 
-System.out.printf("Platform is %s\n",p.getPlatform());
+        System.out.printf("DataFlow Platform is %s\n",p.getPlatform());
 	r=DataFlow.runUpdate(p,"delete from datastatus where dataid in ('1.0','1.1','1.2') and jobid=? ","otherjob");
 	r=DataFlow.runUpdate(p,"delete from datastatus where dataid in ('1.0','1.1','1.2') and jobid=? ","loadbob");
 

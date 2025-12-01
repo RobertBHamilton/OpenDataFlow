@@ -31,7 +31,7 @@ public class DataFlow {
 	updatecount+=dataprovider.runUpdate(dataprovider.getSQL("createDatasetSQL"));
 	updatecount+=dataprovider.runUpdate(dataprovider.getSQL("createDatastatusSQL"));
 	updatecount+=dataprovider.runUpdate(dataprovider.getSQL("createIndexDatasetSQL"));
-	return String.format("%d rows updated",updatecount);
+        return String.format("[{\"result\":\"tables/indexes created\"}]");
   }
     /**  Set the status for a given dataset,job, and chunk 
      *

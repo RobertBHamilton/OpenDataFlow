@@ -23,8 +23,18 @@ jobid=${jobid%.*}              #strip off the extention
 shift 1
 export args="$@"
 # 
-export CLASSPATH=bin/postgresql-42.7.3.jar:bin/json-20250517.jar:utility/target/utility-1.0.0.jar
-export CLASSPATH=bin/json-20250517.jar:bin/h2-2.2.224.jar:utility/target/utility-1.0.0.jar
+#export CLASSPATH=bin/postgresql-42.7.3.jar:bin/json-20250517.jar:utility/target/utility-1.0.0.jar
+#export CLASSPATH=bin/json-20250517.jar:bin/h2-2.2.224.jar:utility/target/utility-1.0.0.jar
+# get the jar file either in current directory or in canonical build location
+jarfile="`ls  utility/target/dataflow*jar dataflow*jar 2>/dev/null|tail -1`"
+if [ -f "$jarfile" ];then
+        export jarc="java -jar $jarfile $PASSKEY "
+else
+        echo we need the dataflow-version.jar to run this utility. Cannot continue
+        exit
+fi
+export CLASSPATH=$jarfile
+
 
 getEnvJSON(){
   #java com.hamiltonlabs.dataflow.utility.GetJobData $jobid $passkey 
@@ -68,21 +78,19 @@ done
 # test
 env="`declareEnv`"
 # uncomment if you need to debug echo "$env"
+
 source <(echo "$env")
 if [ -z "$dataid" ];then
   echo "`date`: no suitable data available for job. Not running it"
 else
 
-echo "`date`: Launching $cmd with dataid $dataid"
-# lock our files
-#java com.hamiltonlabs.dataflow.utility.SetJobStart $passkey $jobid $dataid
-echo Running  "$cmd $args"
-eval "$cmd $args"
- if [ $? -eq 0 ];then
+  echo "`date`: Launching $cmd with dataid $dataid"
+  eval "$cmd $args"
+  if [ $? -eq 0 ];then
      echo "`date`: Job $cmd is complete. Updating status"
      java -cp $CLASSPATH:app.jar com.hamiltonlabs.dataflow.utility.SetJobEndStatus $passkey $jobid $dataid READY
-else
+  else
      echo "`date`: Job $cmd has failed. Updating status"
      java -cp $CLASSPATH:app.jar com.hamiltonlabs.dataflow.utility.SetJobEndStatus $passkey $jobid $dataid FAILED
-fi
+  fi
 fi

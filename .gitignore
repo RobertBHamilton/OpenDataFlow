@@ -16,3 +16,4 @@ scratch
 # JDT-specific (Eclipse Java Development Tools)
 .classpath
 lib
+dataflow.*
