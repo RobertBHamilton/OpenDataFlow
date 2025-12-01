@@ -64,7 +64,6 @@ public class DataProvider implements AutoCloseable{
 	    connection.setSchema(creds.getProperty("schema"));
 	}
 	platform=creds.getProperty("platform");
-	System.out.println("Using platform "+platform);
         sqlResource=new SqlResourceLoader(platform);
 	return this;
     }	

@@ -1,0 +1,96 @@
+ java -cp bin/h2-2.2.224.jar org.h2.tools.Server -tcp -tcpPort 9092 -tcpAllowOthers &
+
+$cat dataflow.properties
+url=jdbc:h2:tcp://localhost:9092/~/dataflow;INIT=CREATE SCHEMA IF NOT EXISTS DATAFLOW\\;set schema DATAFLOW
+user=etl
+encrypted=ZpLfE+uTYE2mdmjOPrukol3yu+cpAHBnmL6trHa9PHGj
+platform=h2
+
+# The properties creates your database in home directory, creates schema named dataflow. Platform=url informs the DataFlow tool that it is using h2, just inj case there are any platform dependent adjustments needed. 
+
+export PASSKEY=plugh   The default key. Since everybody knows it, you should probably change it for anything other than test
+
+ ./utility.sh sql "select user"
+CURRENT_USER
+------------
+ETL
+
+# This proved that we are connecting to h2.
+
+ ./utility.sh CreateTables
+
+# This should have created three tables. datastatus, dataset, job
+
+ ./utility.sh dml "insert into dataset (datasetid) values  ('bobin')
+ ./utility.sh dml "insert into dataset (datasetid) values  ('bobout')
+
+# this registered two datasets. The dataset tables contains other metadata about the datasets, 
+# but we won't need them for this example. The existence of the record means that the status will be tracked.
+
+#Next we register a job named 'loadbob'. It takes two rows, one to associate the input file with loadbob and one to associcate the output.
+
+ ./utility.sh dml "insert into job (datasetid,itemtype,jobid) values ('bobout','OUT','loadbob')"
+ ./utility.sh dml "insert into job (datasetid,itemtype,jobid) values ('bobin' ,'IN', 'loadbob')"
+
+# Registers with DataFlow that the job named 'loadbob' expects input from dataset 'bobin' and will write output to 'bobout'
+
+
+# Dataflow will only signal that loadbob is ready to run if the inputs are READY, and also that the output is not being created by some other job.
+# Usually the status is set by some upstream job, but we will just fake it and set the status by hand for this demo
+
+ ./utility.sh dml "insert into datastatus (dataid,datasetid,jobid,locktype,modified,status) values ('1.0','bobin','fakejob', 'OUT',now(),'READY')"
+
+# Now we can ask Dataflow to find us a dataid to run with. Dataflow will automatically claim 1.0 since it is ready and nobody else is using it.
+# Note that this housekeeping is done automatically by the RunJob utility. We are just looking to see what it does.
+
+ ./utility.sh startjob loadbob
+
+[
+  {
+    "dataid": "1.0"
+  },
+  {
+    "bobout_DATASETID": "bobout",
+    "bobout_ITEMTYPE": "OUT"
+  },
+  {
+    "bobin_DATASETID": "bobin",
+    "bobin_ITEMTYPE": "IN"
+  }
+]
+
+# Notice that the json gives you the dataid and the dataset descriptors. RunJob goes further and parses them into environment variables.
+# That way your script or binary can use the metadata to open a connection to the dataset and access the data.
+# Here is what the datastatus table looks like while loadbob is running:
+
+ ./utility.sh sql 'select * from datastatus'
+DATAID  DATASETID  JOBID    LOCKTYPE  MODIFIED                    STATUS
+------  ---------  -----    --------  --------                    ------
+1.0     bobin      fakejob  OUT       2025-11-30 17:27:42.791574  READY
+1.0     bobout     loadbob  OUT       2025-11-30 17:29:21.15687   RUNNING
+1.0     bobin      loadbob  IN        2025-11-30 17:29:21.160506  RUNNING
+
+# It has a running status on both the IN and the OUT files. This prevents any other job, if it is using DataFlow, from 
+# modifying the data while they are running. 
+# It also prevents other loadbob's from using the same 1.0 bobin data chunks so that we are guaranteed not to be duplicating data.
+# Other jobs of course can still use it.
+
+ 
+# Suppose the job finishes. It can signal the fact by setting the end status.
+# RunJob does this automatically, so you never have to put this code in your script. 
+# But since we are doing it manually here, this is what we would do:
+
+  ./utility.sh endjob loadbob 1.0 READY
+
+output: 1 rows updated to READY for loadbob and 1.0 1 IN file-local locks released
+
+ ./utility.sh sql 'select * from datastatus'
+DATAID  DATASETID  JOBID    LOCKTYPE  MODIFIED                    STATUS
+------  ---------  -----    --------  --------                    ------
+1.0     bobin      fakejob  OUT       2025-11-30 17:27:42.791574  READY
+1.0     bobout     loadbob  OUT       2025-11-30 17:29:21.15687   READY
+
+# The dataset 'bobout' with dataid '1.0' is now in READY state, which means that downstream jobs can consume it. 
+# It also prevents any future loadbob job from running with that same dataid, because that batch is now complete.
+# The IN dataset has disappeared. Now that the job is complete, it has become irrelevant.
+

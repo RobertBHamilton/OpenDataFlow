@@ -53,7 +53,12 @@ NOTE: for the script we have added a new dependency. It uses jq.
      The messy problems of 11-09 are fixed.   
 2025-11-17 Change RunJob to use simpler syntax. Now we just to RunJob myscript.sh and it infers the runid from the script name. 
     To use the old method, which allows arbitrary commands like "echo or set", use SRUN jobid cmd
-    Updated the help in utility jar, added deleterun function. Loading properties file now as a resource.
+    Updated the help in utility jar, added deleterun function. Loading dataflow.properties file now optionally as a resource in jar.
 
-    TODO: I think we should remove passkey on command line entirely and force it to be environment only.                                             
-  
+    Remove passkey on command line utilities.sh and RunJob entirely and require it to be environment only.                                             
+
+2025-11-21 Added useful functions such as ForceRun and simplified RunJob, and added clear examples, added very useful automatic dataset called 'today' which can be used for daily runs to get an automatic dataid.  Merged the service_cleaup mod into main.   
+
+2025-11-29 (dev) new "h2" dev branch. Added h2 support, for unit testing and as a light-weight implementation. Created platform module for platform-dependent SQL. Unit test for critical DataFlow.launchJob method.
+
+

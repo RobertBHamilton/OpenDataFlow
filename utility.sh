@@ -5,7 +5,7 @@ usage: $0 cmd args
 currently supported commands with required args are:
 
     utility.sh sql  <sql>         -- run a select sql statement
-    utility.sh dml  <sql>         -- run a dml statement 
+    utility.sh ddl  <sql>         -- run a ddl or update/delete statement 
     utility.sh crypt -e key text  -- -e to encrypt or -d to decrypt
     utility.sh runs               -- list the 20 most recent job runs
     utility.sh getjob             -- get input/output configuration for a job
@@ -14,7 +14,7 @@ currently supported commands with required args are:
     utility.sh forcejob           -- get a timestamp dataid even if no dependencies are met.  But see  **
 
     CLASSNAME args -- any executable class in utilities module. Example:
-     utility.sh  SetJobEndStatus jobid dataid status 
+     utility.sh  endjob jobid dataid status 
      utility.sh  GetJobData jobid 
      utility.sh  SetDataStatus RUNNING 3000 today newjob OUT
      utility.sh dml "delete from datastatus where jobid='newjob'a
@@ -49,10 +49,10 @@ export util="com.hamiltonlabs.dataflow.utility"
 export jarc="java -jar utility/target/utility-1.0.0.jar $PASSKEY  "
 export jar="$jarc $cmd "
 # Special case the runsql and other SQLs because we can and should make the result readable
-
+# cmd now has arguments: $PASSKEY $cmd $args
 case  "$cmd" in 
     "sql" ) 
-	$jar "$@" |./tablemaker.sh
+	$jar "$@" |tail -1|./tablemaker.sh
         ;;
     "dml" ) 
 	$jar "$@"  |./tablemaker.sh
@@ -61,18 +61,23 @@ case  "$cmd" in
 	$jar "$@"
         ;;
     "runs" ) 
-	$jar |./tablemaker.sh
+	$jar |tail -1|./tablemaker.sh
         ;; 
     "getjob" ) 
 	$jar  $@ |jq .
         ;; 
-
+    "startjob" ) 
+	$jar  $@ |tablemaker.sh jsonalso
+        ;; 
+    "endjob" )
+	$jar $@ |tablemaker.sh
+	;;
     "forcejob" ) 
 	$jar  $@ 
         ;; 
 
     "jobs" )
-	$jar |./tablemaker.sh
+	$jar |tail -1|./tablemaker.sh
         ;; 
     "deleterun" )
 	$jar $@  |./tablemaker.sh
