@@ -20,7 +20,7 @@ fi
 if [ "$1" == "-c" ];then
   export cmd=$2
   export jobid=$3
-  echo "running the specific command version, cmd=$cmd and jobid=$jobid"
+  echo "`date`: Running the specific command version, cmd=$cmd and jobid=$jobid"
   shift 3 
 else
   # In the normal case we are executing RunJob /path/to/some_command.sh, 
@@ -28,7 +28,7 @@ else
   export cmd=$1
   export jobid=`basename $cmd`   #strip off the directory path
   jobid=${jobid%.*}              #strip off the extention
-  echo "running the implicit command version, cmd=$cmd and jobid=$jobid"
+  echo "`date`: Running the implicit command version, cmd=$cmd and jobid=$jobid"
   shift 1
 fi
 export args="$@"
@@ -60,7 +60,7 @@ decrypt() {
   unset dataid   
   getEnvJSON|tail -1|jq -c '.[] | to_entries[]' | (while read -r entry; do
 
-  key=$(echo "$entry" | jq -r '.key')
+  key=$(echo "$entry" | jq -r '.key'| tr '[:upper:]' '[:lower:]')
   value=$(echo "$entry" | jq -r '.value')
 
 # FIXME there is some bug when value contains a path symbol */
@@ -78,8 +78,6 @@ decrypt() {
     fi
   fi
 done
-export dataid
-echo dataid is $dataid
 # uncomment if you need to debug echo "$env"
 #source <(echo "$env")
 if [ -z "$dataid" ];then

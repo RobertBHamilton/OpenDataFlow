@@ -1,6 +1,10 @@
 #!/bin/bash
 
-export CLASSPATH=$CLASSPATH:bin/postgresql-42.7.3.jar:bin/json-20250517.jar:bin/h2-2.2.224.jar:utility/target/dataflow-1.0.0.jar
+# Added to make cronjobs easier to set CLASSPATH
+thisdir=`dirname ${BASH_SOURCE[0]}`
+cd $thisdir
+
+
 if [ $# -lt 1 ];then
 cat<<DONE
 usage: $0 cmd args
@@ -63,7 +67,7 @@ function tablemaker(){
     export tbl="`echo $json|jq -r "($header),(.[]|$fields)|@tsv"|column -t -s $'\t'`"
 
     # get a line of correct length
-    line1=`echo "$tbl"|head -1`
+    line1=`echo "$tbl"|tail -1`
     line=`echo -e "$line1"|sed 's/[^ ]/-/g'`
 
     # insert at line 2

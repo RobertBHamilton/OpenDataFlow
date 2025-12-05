@@ -14,6 +14,10 @@
 
     utility.sh dml "insert into job (datasetid,itemtype,jobid) values ('today','IN',   'validate_datastatus')";
     utility.sh dml "insert into job (datasetid,itemtype,jobid) values ('datastatus','OUT'   ,'validate_datastatus')";
+#
+# Do this if you have not done it already.
+
+    utility.sh sql "insert into dataset (datasetid,hostname,database, schemaname,tablename,username,encryptedpass) values  ('datastatus','localhost', 'dataflow','dataflow','datastatus', 'etl','ZpLfE+uTYE2mdmjOPrukol3yu+cpAHBnmL6trHa9PHGj'"
 
 #We mark datastatus as OUT because we want the datastatus dataset to be marked as READY once our script validates it.
 #This gives us the automatic variables to connect, but we don't want it to be an IN which is required to have a dataid already.  

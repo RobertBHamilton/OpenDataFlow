@@ -2,13 +2,17 @@
 
 # Validation rule: dataset is valid if and only if number of records > 1
 
-export PGPASSWORD=$datastatus_password
-export sql="psql -U $datastatus_username  -d $datastatus_database -h $datastatus_hostname -c "
-export output_path=${datastatusextract_schemaname}/${datastatusextract_tablename}/status_$dataid
 
-export n=`$sql  "select count(*) from ${datastatus_schemaname}.${datastatus_tablename} where modified::date = to_date('$dataid','yyyy-mm-dd')" |head -3|tail -1`
+# This is the version to run against H2 
+# Note that RunJob put us in the right directory, which also has utility.sh
+# verify this:
+echo Current working directory `pwd`
+./utility.sh sql "select count(*) as numrows from ${datastatus_schemaname}.${datastatus_tablename} where cast(modified as date) = parsedatetime('$dataid','yyyy-MM-dd')" 
 
-if [ $n -gt 1 ];then 
+export n=`./utility.sh sql "select count(*) as numrows from ${datastatus_schemaname}.${datastatus_tablename} where cast(modified as date) = parsedatetime('$dataid','yyyy-MM-dd')" |head -3|tail -1`
+
+echo "dataset hass $n rows"
+if [ "$n" -ge 0 ];then 
     echo "n=$n valid"
     exit 0 
 else

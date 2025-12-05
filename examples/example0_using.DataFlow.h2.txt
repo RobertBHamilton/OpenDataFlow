@@ -1,4 +1,8 @@
- java -cp bin/h2-2.2.224.jar org.h2.tools.Server -tcp -tcpPort 9092 -tcpAllowOthers &
+#When running without options, -tcp, -web, -browser and -pg are started. 
+# to be very safe we bind to localhost explicitly
+ 
+ java -cp bin/h2-2.2.224.jar -Dbind.address=127.0.0.1 org.h2.tools.Server 
+
 
 $cat dataflow.properties
 url=jdbc:h2:tcp://localhost:9092/~/dataflow;INIT=CREATE SCHEMA IF NOT EXISTS DATAFLOW\\;set schema DATAFLOW

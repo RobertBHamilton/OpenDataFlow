@@ -33,7 +33,7 @@ export PASSKEY=plugh                   # If in environment, we don't have to put
 export CRYPTKEY=`utility.sh crypt -e $PASSKEY`  # we have encrypted password now 
 
 # Now to insert the dataset
-utility.sh sql "insert into dataset (datasetid,hostname,database, schemaname,tablename,username,encryptedpass) values  ('datastatus','localhost', 'dataflow','dataflow','datastatus', 'etl','$CRYPTKEY')"
+utility.sh dml "insert into dataset (datasetid,hostname,database, schemaname,tablename,username,encryptedpass) values  ('datastatus','localhost', 'dataflow','dataflow','datastatus', 'etl','$CRYPTKEY')"
 
 # Second example. Our output is a file.  We are using the same table, but now we will shoe-horn the file descriptor into these fields.
 # If that bothers you, then you can always create a view that renames the columns. But for now we just repurpose them.
@@ -49,7 +49,7 @@ utility.sh sql "insert into dataset (datasetid,hostname,database, schemaname,tab
 # 
 # So here is the way to register this dataset
 
-utility.sh sql "insert into dataset (datasetid,hostname,database, schemaname,tablename,username) values  ('datastatusextract','localhost','file:','/data/dataflow/','datastatus','etl')"
+utility.sh dml "insert into dataset (datasetid,hostname,database, schemaname,tablename,username) values  ('datastatusextract','localhost','file:','/data/dataflow/','datastatus','etl')"
 
 # in a later example we will show typically how these are used to contruct full path and sequenced extract files.
 
